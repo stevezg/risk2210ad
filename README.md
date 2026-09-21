@@ -1,4 +1,9 @@
-# Risk 2210 A.D. — C++ game engine
+# Risk 2210 A.D.
+
+**The game is being ported to Unity/C# — see [`Risk2210AD/README.md`](Risk2210AD/README.md).**
+The C++ engine below is the reference implementation the port is derived from.
+
+## C++ reference engine
 
 A rules engine for *Risk 2210 A.D.* (Avalon Hill, 2001) written in C++17 with no
 external dependencies. It ships with a simple heuristic AI, an interactive

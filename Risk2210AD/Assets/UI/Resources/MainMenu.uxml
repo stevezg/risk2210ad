@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:VisualElement name="root" class="root menu-root">
+    <ui:VisualElement class="panel menu">
+      <ui:Label text="RISK" class="menu-title" />
+      <ui:Label text="2210 A.D." class="menu-subtitle" />
+      <ui:Label text="COMMANDERS" class="section" />
+      <ui:VisualElement name="players" class="row" />
+      <ui:Label text="MODE" class="section" />
+      <ui:VisualElement name="modes" class="row" />
+      <ui:Button name="start" text="LAUNCH CAMPAIGN" class="btn primary start" />
+      <ui:Label text="Left-drag / WASD pan · wheel zoom · click territories to act" class="hint" />
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>
