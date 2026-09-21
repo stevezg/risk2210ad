@@ -4,7 +4,7 @@ A rules engine for *Risk 2210 A.D.* (Avalon Hill, 2001) written in C++17 with no
 external dependencies. It ships with a simple heuristic AI, an interactive
 text-mode player, and a self-play test suite.
 
-![GUI screenshot](docs/screenshot.png)
+![Tactical client](docs/screenshot-app.png)
 
 ## Build & run
 
@@ -14,12 +14,44 @@ cmake --build build -j
 ./build/risk2210_tests                     # engine invariants + 160 self-play games
 ./build/risk2210_cli --players 4 --seed 42 # watch four AIs play
 ./build/risk2210_cli --players 3 --human 0 # you are Red, two AIs
-./build/risk2210_gui --players 4           # graphical game, you are Red
+./build/risk2210_app                       # premium client (raylib + Dear ImGui) — Phase 1
+./build/risk2210_gui --players 4           # simple playable raylib GUI, you are Red
 ./build/risk2210_gui --spectate            # watch the AIs play
 ```
 
-The GUI needs [raylib](https://www.raylib.com) (`brew install raylib`); CMake
-skips the `risk2210_gui` target if it isn't installed.
+Both GUIs need [raylib](https://www.raylib.com) (`brew install raylib`); CMake
+skips them if it isn't installed. Dear ImGui and rlImGui are fetched by CMake
+at configure time (network needed on first configure).
+
+## Premium client (`risk2210_app`)
+
+The direction for the finished game: a sci-fi tactical terminal built on
+raylib + Dear ImGui with a custom neon theme, GLSL post-processing and a
+frame-independent animation pipeline. It is being built in phases on top of the
+same engine; the simple `risk2210_gui` stays playable until it reaches parity.
+
+**Phase 1 (done):**
+* CMake builds raylib (Homebrew), Dear ImGui and rlImGui out of the box on macOS,
+  linking Cocoa / IOKit / OpenGL / CoreVideo.
+* Retina-aware render pipeline: scene → bloom shader → optional CRT/scanline
+  shader → screen (`src/app/Renderer.*`, shaders in `src/app/Shaders.h`).
+* World-space tactical grid shader with an energy sweep and vignette.
+* Territory graph rendered with glowing neon borders; hover and click-to-focus
+  highlights, ImGui tooltip with colony data.
+* Camera: wheel zoom toward the cursor, drag / WASD pan, click-to-focus with
+  eased interpolation, `R` to reframe the board.
+* Animation pipeline (`src/app/Animation.h`): `Animator` with tagged tweens and
+  easing curves, `TravelOrb` glowing transport nodes that travel along graph
+  paths (shift+click sends one from the selected territory; `Space` launches a
+  demo), and expanding pulse rings on arrival.
+* Custom ImGui theme (`src/app/Theme.*`): translucent dark panels, rounded
+  corners, cyan/amber accents; COMMAND DECK panel with visual toggles, year
+  track and controls overlay.
+
+**Next phases:** bind the client to a running `Game` (player panels, phase
+controls, card hand with tooltips), combat dice overlay with screenshake and
+loss flashes, conquest border pulses, army-movement orbs driven by engine
+events, bot turns paced on the worker thread.
 
 ### Playing in the GUI
 
@@ -41,7 +73,8 @@ Cards in your hand are clickable when they can legally be played.
 | `include/risk2210/Agent.h` | decision-maker interface the engine calls into |
 | `include/risk2210/Agents.h`, `src/Agents.cpp` | `RandomAgent` (AI) and `HumanCliAgent` (terminal) |
 | `src/main.cpp` | CLI driver |
-| `src/gui/GuiAgent.h`, `src/gui/gui_main.cpp` | raylib GUI: engine runs on a worker thread, `GuiAgent` parks it for human input |
+| `src/gui/GuiAgent.h`, `src/gui/gui_main.cpp` | simple raylib GUI: engine runs on a worker thread, `GuiAgent` parks it for human input |
+| `src/app/` | premium client: `App` (loop, input, panels), `BoardView`, `Renderer` (post-FX), `Animation.h`, `Theme`, `Shaders.h` |
 | `tests/tests.cpp` | map checks, rule checks, self-play invariant fuzzing |
 
 ## Rules implemented

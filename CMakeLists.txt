@@ -39,3 +39,42 @@ if(raylib_FOUND)
 else()
   message(STATUS "raylib not found: skipping risk2210_gui")
 endif()
+
+# ---------------------------------------------------------------------------
+# Premium client: raylib + Dear ImGui (via rlImGui), fetched at configure time
+# ---------------------------------------------------------------------------
+if(raylib_FOUND)
+  include(FetchContent)
+  FetchContent_Declare(imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.92.9
+    GIT_SHALLOW    TRUE)
+  FetchContent_Declare(rlimgui
+    GIT_REPOSITORY https://github.com/raylib-extras/rlImGui.git
+    GIT_TAG        1550009359ad975927f7f0e4a3f47e3f27123ea9)
+  FetchContent_MakeAvailable(imgui rlimgui)
+
+  add_library(imgui STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${rlimgui_SOURCE_DIR}/rlImGui.cpp)
+  target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${rlimgui_SOURCE_DIR})
+  target_link_libraries(imgui PUBLIC raylib)
+  target_compile_definitions(imgui PUBLIC NO_FONT_AWESOME)
+
+  add_executable(risk2210_app
+    src/app/main.cpp
+    src/app/App.cpp
+    src/app/BoardView.cpp
+    src/app/Renderer.cpp
+    src/app/Theme.cpp)
+  target_include_directories(risk2210_app PRIVATE src/app)
+  target_link_libraries(risk2210_app PRIVATE risk2210 imgui raylib Threads::Threads)
+  if(APPLE)
+    target_link_libraries(risk2210_app PRIVATE "-framework IOKit" "-framework Cocoa" "-framework OpenGL" "-framework CoreVideo")
+  endif()
+  target_compile_options(risk2210_app PRIVATE -Wall -Wextra)
+endif()
