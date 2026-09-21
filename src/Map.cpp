@@ -161,21 +161,22 @@ Map Map::standard() {
     };
     for (const auto& [a, b] : landLinks) m.link(a, b);
 
-    // ---- Water connections (approximation of the 2210 board layout) --------
+    // ---- Water connections (from the printed board; Pacific links wrap
+    //      around the board edge) ---------------------------------------------
     const std::pair<const char*, const char*> waterLinks[] = {
-        {"Poseidon", "Aleutian Empire"}, {"Poseidon", "Continental Biospheres"}, {"Poseidon", "Hawaiian Preserve"},
-        {"Hawaiian Preserve", "New Atlantis"}, {"Hawaiian Preserve", "Neo Tokyo"}, {"Hawaiian Preserve", "Mexitlopoctli"},
-        {"New Atlantis", "Mexitlopoctli"}, {"New Atlantis", "Andean Nations"},
-        {"Neo Tokyo", "Japan"}, {"Neo Tokyo", "Sung Tzu"},
-        {"Sung Tzu", "Hong Kong"}, {"Sung Tzu", "Angkhor Wat"}, {"Sung Tzu", "New Guinea"},
-        {"Western Ireland", "New Avalon"}, {"Western Ireland", "Iceland GRC"}, {"Western Ireland", "New York City"},
-        {"New York City", "American Republic"}, {"New York City", "Republique du Quebec"}, {"New York City", "Nova Brasilia"},
-        {"Nova Brasilia", "Nuevo Timoto"}, {"Nova Brasilia", "Saharan Empire"}, {"Nova Brasilia", "Neo Paulo"},
-        {"Neo Paulo", "Amazon Desert"}, {"Neo Paulo", "Argentina"}, {"Neo Paulo", "The Ivory Reef"},
-        {"The Ivory Reef", "Zaire Military Zone"}, {"The Ivory Reef", "Lesotho"}, {"The Ivory Reef", "Microcorp"},
-        {"Akara", "Middle East"}, {"Akara", "Ministry of Djibouti"}, {"Akara", "South Ceylon"},
-        {"South Ceylon", "United Indiastan"}, {"South Ceylon", "Angkhor Wat"}, {"South Ceylon", "Microcorp"},
-        {"Microcorp", "Madagascar"}, {"Microcorp", "Aboriginal League"},
+        {"Poseidon", "Aleutian Empire"}, {"Poseidon", "Hawaiian Preserve"},
+        {"Hawaiian Preserve", "Mexitlopoctli"}, {"Hawaiian Preserve", "New Atlantis"}, {"Hawaiian Preserve", "Neo Tokyo"},
+        {"New Atlantis", "Nuevo Timoto"}, {"New Atlantis", "Sung Tzu"},
+        {"Neo Tokyo", "Japan"}, {"Neo Tokyo", "Hong Kong"}, {"Neo Tokyo", "Sung Tzu"},
+        {"Sung Tzu", "Java Cartel"},
+        {"Western Ireland", "New Avalon"}, {"Western Ireland", "New York City"},
+        {"New York City", "American Republic"}, {"New York City", "Nova Brasilia"},
+        {"Nova Brasilia", "Nuevo Timoto"}, {"Nova Brasilia", "Saharan Empire"},
+        {"Neo Paulo", "Amazon Desert"}, {"Neo Paulo", "The Ivory Reef"},
+        {"The Ivory Reef", "Saharan Empire"},
+        {"South Ceylon", "United Indiastan"}, {"South Ceylon", "Microcorp"},
+        {"Microcorp", "Madagascar"}, {"Microcorp", "Akara"},
+        {"Akara", "Aboriginal League"},
     };
     for (const auto& [a, b] : waterLinks) m.link(a, b);
 

@@ -57,8 +57,8 @@ cmake --build build -j
 
 ## Known approximations
 
-* Water and lunar adjacency, and the lunar colony bonus values (Cresinion 2,
-  Delphot 2, Sajon 3), are reconstructed from the board layout rather than
+* Lunar adjacency and the lunar colony bonus values (Cresinion 2,
+  Delphot 2, Sajon 3), are reconstructed rather than
   transcribed; all of it lives in `src/Map.cpp` and is easy to correct.
 * The command card catalogue is a representative subset with the same flavour
   as each official deck, not a card-for-card transcription. Add cards in
