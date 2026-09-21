@@ -24,7 +24,11 @@ namespace Risk2210.View
             new Face { Normal = Vector3.up, Up = Vector3.forward }, new Face { Normal = Vector3.down, Up = Vector3.back },
         };
 
-        private void Awake() => font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        private void Awake()
+        {
+            font = Resources.Load<Font>("gun4f");
+            if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        }
 
         public IEnumerator Play(GameEvent ev, BoardView board, TacticalCamera cam)
         {

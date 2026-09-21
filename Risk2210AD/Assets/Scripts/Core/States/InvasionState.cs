@@ -16,7 +16,7 @@ namespace Risk2210.Core.States
             switch (cmd)
             {
                 case PlayCard pc:
-                    return DeploymentState.PlayBeforeInvasionCard(D, p, pc.HandIndex);
+                    return DeploymentState.PlayCardNow(D, p, pc.HandIndex, CardTiming.BeforeFirstInvasion);
                 case DeclareInvasion di:
                     return Declare(p, di.From, di.To);
                 case Attack a:
@@ -79,6 +79,7 @@ namespace Risk2210.Core.States
                 {
                     if (idx < 0) { reactors.Dequeue(); PromptNextReactor(reactors); return; }
                     ApplyReactiveCard(q, idx);
+                    if (S.Prompt != null || !S.Invasion.Active || S.Invasion.Captured) return;
                     PromptNextReactor(reactors);   // same player may play another
                 }
             });
@@ -88,18 +89,56 @@ namespace Risk2210.Core.States
         {
             var ps = S.Players[q];
             var card = CardCatalogue.Get(ps.Hand[handIndex]);
-            if (card.Cost > 0) D.ChangeEnergy(q, -card.Cost);
+            int cost = S.CardCost(q, card);
+            if (cost > 0) D.ChangeEnergy(q, -cost);
             ps.Hand.RemoveAt(handIndex);
             var ev = GameEvent.Make(GameEventType.CardPlayed, $"{ps.Name} plays {card.Name}"); ev.Player = q; ev.Amount = card.Id; D.Emit(ev);
-            if (card.Kind == CardKind.StealthMods)
+            var inv = S.Invasion;
+            switch (card.Kind)
             {
-                S.Territories[S.Invasion.To].Mods += 3;
-                D.EmitDeploy(S.Territories[S.Invasion.To].Owner, S.Invasion.To, 3);
-            }
-            else if (card.Kind == CardKind.CeaseFire)
-            {
-                S.Invasion = new Invasion();
-                D.Emit(GameEvent.Make(GameEventType.InvasionCancelled, "The invasion is cancelled by Cease Fire"));
+                case CardKind.StealthMods:
+                    S.Territories[inv.To].Mods += 3;
+                    D.EmitDeploy(S.Territories[inv.To].Owner, inv.To, 3);
+                    break;
+                case CardKind.StealthStation:
+                    S.Territories[inv.To].SpaceStation = true;
+                    var st = GameEvent.Make(GameEventType.StationBuilt, $"A Space Station appears in {D.TName(inv.To)}"); st.Player = q; st.To = inv.To; D.Emit(st);
+                    break;
+                case CardKind.DeathTrap:
+                {
+                    int n = (S.Territories[inv.From].Units + 1) / 2;
+                    D.LogText($"{D.Name(inv.Attacker)} loses {n} unit(s) in {D.TName(inv.From)} to the trap");
+                    D.DestroyUnits(inv.From, n);
+                    D.CheckElimination(inv.Attacker);
+                    if (S.Territories[inv.From].Units < 2 || !S.IsActive(inv.Attacker))
+                    {
+                        S.Invasion = new Invasion();
+                        D.Emit(GameEvent.Make(GameEventType.InvasionCancelled, "The invasion collapses"));
+                    }
+                    break;
+                }
+                case CardKind.CeaseFire:
+                    S.Players[inv.Attacker].CeaseFireWith.Add(q);
+                    S.Invasion = new Invasion();
+                    D.Emit(GameEvent.Make(GameEventType.InvasionCancelled, $"Cease Fire: {D.Name(inv.Attacker)} may not attack {ps.Name} again this turn"));
+                    break;
+                case CardKind.Evacuation:
+                {
+                    var dests = S.OwnedTerritories(q); dests.Remove(inv.To);
+                    if (dests.Count == 0) break;
+                    D.OpenPrompt(new Prompt { Kind = PromptKind.ChooseTerritory, Player = q, Text = "Evacuate all units to", Options = dests, OnResponse = to =>
+                    {
+                        var f = S.Territories[inv.To]; var d = S.Territories[to];
+                        int moved = f.Units;
+                        d.Mods += f.Mods; f.Mods = 0;
+                        for (int c = 0; c < MapGraph.NumCommanders; c++) if (f.Commanders[c]) { f.Commanders[c] = false; d.Commanders[c] = true; }
+                        if (!f.SpaceStation) f.Owner = -1;
+                        var mv = GameEvent.Make(GameEventType.UnitsMoved, $"{ps.Name} evacuates {moved} unit(s) from {D.TName(inv.To)} to {D.TName(to)}");
+                        mv.Player = q; mv.From = inv.To; mv.To = to; mv.Amount = moved; D.Emit(mv);
+                        if (S.Invasion.Active && S.Invasion.To == inv.To && S.Territories[inv.To].Units == 0) OccupyEmpty();
+                    } });
+                    break;
+                }
             }
         }
 

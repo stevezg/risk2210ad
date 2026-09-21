@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+  <Style src="Hud.uss" />
   <ui:VisualElement name="root" class="root" picking-mode="Ignore">
 
     <ui:VisualElement name="top-bar" class="panel top-bar">

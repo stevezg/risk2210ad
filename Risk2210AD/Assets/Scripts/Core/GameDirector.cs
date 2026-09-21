@@ -96,12 +96,11 @@ namespace Risk2210.Core
                     {
                         if (r.Value >= State.Players[p.Player].Hand.Count) return CommandResult.Fail("no such card");
                         var c = CardCatalogue.Get(State.Players[p.Player].Hand[r.Value]);
-                        if (c.Timing != CardTiming.OnInvasionDeclared) return CommandResult.Fail("not a reactive card");
-                        if (!State.CommanderInPlay(p.Player, c.Deck)) return CommandResult.Fail(c.Deck + " Commander is not in play");
-                        if (State.Players[p.Player].Energy < c.Cost) return CommandResult.Fail("not enough energy");
-                        if (c.Kind == CardKind.StealthMods && Map[State.Invasion.To].Type != c.Target) return CommandResult.Fail("wrong territory type for Stealth MODs");
-                        if (c.Kind == CardKind.CeaseFire && State.Invasion.Defender != p.Player) return CommandResult.Fail("only the defender may play Cease Fire");
+                        if (!State.ReactiveCardPlayable(p.Player, c)) return CommandResult.Fail(c.Name + " cannot be played against this invasion");
                     }
+                    break;
+                case PromptKind.ChoosePlayer:
+                    if (!p.Options.Contains(r.Value)) return CommandResult.Fail("choose a listed player");
                     break;
                 case PromptKind.BonusDeck:
                     if (r.Value < 0 || r.Value >= p.Decks.Count) return CommandResult.Fail("choose a listed deck");
@@ -221,6 +220,8 @@ namespace Risk2210.Core
             State.CurrentPlayer = p;
             ps.CardsBoughtThisTurn = 0; ps.ContestedCaptures = 0; ps.BonusClaimed = false; ps.InvasionDeclaredThisTurn = false;
             ps.FortifiedThisTurn = false; ps.InvadeEarthTarget = -1; ps.InvasionsThisTurn = 0;
+            ps.ExtraFortifies = 0; ps.ArmageddonThisTurn = false; ps.LunarExtractionThisTurn = false;
+            ps.HiddenEnergyTargets.Clear(); ps.CeaseFireWith.Clear();
             State.Invasion = new Invasion();
 
             int inc = State.Income(p);
@@ -236,6 +237,17 @@ namespace Risk2210.Core
         /// <summary>Advances to the next player in turn order, or to the next year.</summary>
         public void EndTurn()
         {
+            int cur = State.CurrentPlayer;
+            if (cur >= 0)
+            {
+                var ps = State.Players[cur];
+                foreach (int t in ps.HiddenEnergyTargets)
+                    if (State.Territories[t].Owner == cur) { ChangeEnergy(cur, 4); LogText($"{ps.Name} collects 4 hidden energy from {TName(t)}"); }
+                if (ps.LunarExtractionThisTurn)
+                    foreach (var r in Map.Regions)
+                        if (r.Type == TerritoryType.Moon && State.ControlsRegion(cur, r.Id)) { ChangeEnergy(cur, 7); LogText($"{ps.Name} extracts 7 energy from {r.Name}"); break; }
+            }
+            foreach (var q in State.Players) q.JammedThisTurn = false;
             State.CurrentPlayer = -1;
             for (State.TurnIndex++; State.TurnIndex < State.TurnOrder.Count; State.TurnIndex++)
             {
@@ -249,7 +261,7 @@ namespace Risk2210.Core
         // Command cards
         // ------------------------------------------------------------------
 
-        /// <summary>Applies a before-first-invasion card. May open ChooseTerritory prompts; `done` runs when complete.</summary>
+        /// <summary>Applies a before-first-invasion / end-of-turn card. May open prompts; `done` runs when complete.</summary>
         public void ApplyCard(int p, CardDef card, Action done)
         {
             var ps = State.Players[p];
@@ -286,36 +298,154 @@ namespace Risk2210.Core
                     done();
                     break;
                 }
-                case CardKind.Redeployment:
+                case CardKind.DecoysRevealed:
                 {
-                    var sources = State.OwnedTerritories(p).Where(t => State.Territories[t].Mods >= 1 && State.Territories[t].Units >= 2).ToList();
-                    if (sources.Count == 0) { done(); break; }
-                    OpenPrompt(new Prompt { Kind = PromptKind.ChooseTerritory, Player = p, Text = "Redeploy MODs from", Options = sources, OnResponse = from =>
+                    var commanders = new List<(int c, int at)>();
+                    for (int t = 0; t < Map.Count; t++)
+                        if (State.Territories[t].Owner == p)
+                            for (int c = 0; c < MapGraph.NumCommanders; c++) if (State.Territories[t].Commanders[c]) commanders.Add((c, t));
+                    int idx = 0;
+                    void Next()
                     {
-                        var dests = State.OwnedTerritories(p); dests.Remove(from);
-                        if (dests.Count == 0) { done(); return; }
-                        OpenPrompt(new Prompt { Kind = PromptKind.ChooseTerritory, Player = p, Text = "Redeploy MODs to", Options = dests, OnResponse = to =>
-                        {
-                            int n = Math.Min(3, Math.Min(State.Territories[from].Mods, State.Territories[from].Units - 1));
-                            State.Territories[from].Mods -= n; State.Territories[to].Mods += n;
-                            var ev = GameEvent.Make(GameEventType.UnitsMoved, $"{ps.Name} redeploys {n} MOD(s) from {TName(from)} to {TName(to)}");
-                            ev.Player = p; ev.From = from; ev.To = to; ev.Amount = n; Emit(ev);
-                            done();
-                        } });
+                        if (idx >= commanders.Count) { done(); return; }
+                        var (c, at) = commanders[idx++];
+                        OpenPrompt(new Prompt { Kind = PromptKind.ChooseTerritory, Player = p, Text = $"Move your {(CommanderType)c} Commander to", Options = State.OwnedTerritories(p),
+                            OnResponse = t =>
+                            {
+                                if (t != at && State.Territories[at].Commanders[c])
+                                {
+                                    State.Territories[at].Commanders[c] = false; State.Territories[t].Commanders[c] = true;
+                                    if (State.Territories[at].Units == 0 && !State.Territories[at].SpaceStation) State.Territories[at].Owner = -1;
+                                    var ev = GameEvent.Make(GameEventType.UnitsMoved, $"{ps.Name} moves the {(CommanderType)c} Commander to {TName(t)}");
+                                    ev.Player = p; ev.From = at; ev.To = t; ev.Amount = 1; Emit(ev);
+                                }
+                                Next();
+                            } });
+                    }
+                    Next();
+                    break;
+                }
+                case CardKind.ModReduction:
+                {
+                    for (int q = 0; q < State.NumPlayers; q++) if (q != p && State.IsActive(q)) RemoveModsAuto(q, 4);
+                    RemoveModsAuto(p, 2);
+                    done();
+                    break;
+                }
+                case CardKind.Redeployment:
+                    ps.ExtraFortifies++;
+                    LogText($"{ps.Name} may make an extra fortify move");
+                    done();
+                    break;
+                case CardKind.TerritorialStation:
+                {
+                    var opts = State.OwnedTerritories(p, TerritoryType.Land).Where(t => !State.Territories[t].SpaceStation).ToList();
+                    if (opts.Count == 0 || State.CountSpaceStations(p) >= Rules.MaxSpaceStations) { done(); break; }
+                    OpenPrompt(new Prompt { Kind = PromptKind.ChooseTerritory, Player = p, Text = "Place a Space Station in", Options = opts, OnResponse = t =>
+                    {
+                        State.Territories[t].SpaceStation = true;
+                        var ev = GameEvent.Make(GameEventType.StationBuilt, $"{ps.Name} deploys a Space Station to {TName(t)}"); ev.Player = p; ev.To = t; Emit(ev);
+                        done();
                     } });
                     break;
                 }
-                case CardKind.EnergyExtraction:
+                case CardKind.FrequencyJam:
                 {
-                    int n = Math.Min(4, State.OwnedTerritories(p, TerritoryType.Water).Count);
-                    ChangeEnergy(p, n);
-                    LogText($"{ps.Name} extracts {n} energy");
+                    var opts = new List<int>();
+                    for (int q = 0; q < State.NumPlayers; q++) if (q != p && State.IsActive(q)) opts.Add(q);
+                    if (opts.Count == 0) { done(); break; }
+                    OpenPrompt(new Prompt { Kind = PromptKind.ChoosePlayer, Player = p, Text = "Jam which player's command cards this turn?", Options = opts, OnResponse = q =>
+                    {
+                        State.Players[q].JammedThisTurn = true;
+                        LogText($"{Name(q)} cannot play command cards during {ps.Name}'s turn");
+                        done();
+                    } });
+                    break;
+                }
+                case CardKind.ScoutForces:
+                {
+                    int t = DrawTerritoryCard(TerritoryType.Land, skipDevastated: true);
+                    if (State.Territories[t].Owner == p) { State.Territories[t].Mods += 5; EmitDeploy(p, t, 5); LogText($"{ps.Name} places 5 scout MODs on {TName(t)}"); }
+                    else { ps.ScoutTerritory = t; LogText($"{ps.Name} has scouts waiting in {TName(t)}"); }
                     done();
+                    break;
+                }
+                case CardKind.HiddenEnergy:
+                {
+                    int t = DrawTerritoryCard(TerritoryType.Water);
+                    ps.HiddenEnergyTargets.Add(t);
+                    LogText($"{ps.Name} will collect 4 energy if they hold {TName(t)} at the end of the turn");
+                    done();
+                    break;
+                }
+                case CardKind.ZoneStrike:
+                {
+                    int region = RollZone(card.Target);
+                    var r = Map.Regions[region];
+                    LogText($"{card.Name} strikes {r.Name}!");
+                    var affected = new HashSet<int>();
+                    foreach (int t in r.Territories)
+                    {
+                        var ts = State.Territories[t];
+                        if (ts.Devastated || ts.Units == 0) continue;
+                        affected.Add(ts.Owner);
+                        DestroyUnits(t, 1);
+                    }
+                    foreach (int q in affected) CheckElimination(q);
+                    done();
+                    break;
+                }
+                case CardKind.AssassinBomb:
+                {
+                    var opts = new List<int>();
+                    for (int t = 0; t < Map.Count; t++)
+                        if (State.Territories[t].Owner >= 0 && State.Territories[t].Owner != p && State.Territories[t].CommanderCount > 0) opts.Add(t);
+                    if (opts.Count == 0) { LogText("No enemy commander to target"); done(); break; }
+                    OpenPrompt(new Prompt { Kind = PromptKind.ChooseTerritory, Player = p, Text = "Target the commander in", Options = opts, OnResponse = t =>
+                    {
+                        var ts = State.Territories[t];
+                        int c = -1;
+                        foreach (int pref in new[] { 3, 4, 2, 0, 1 }) if (ts.Commanders[pref]) { c = pref; break; }
+                        int roll = RollDie(8);
+                        if (roll >= 3 && c >= 0)
+                        {
+                            int owner = ts.Owner;
+                            ts.Commanders[c] = false;
+                            var ev = GameEvent.Make(GameEventType.UnitsDestroyed, $"Assassin Bomb rolls {roll}: {Name(owner)}'s {(CommanderType)c} Commander in {TName(t)} is destroyed");
+                            ev.To = t; ev.Amount = 1; ev.Player = owner; Emit(ev);
+                            if (ts.Units == 0 && !ts.SpaceStation) ts.Owner = -1;
+                            CheckElimination(owner);
+                        }
+                        else LogText($"Assassin Bomb rolls {roll}: the commander survives");
+                        done();
+                    } });
+                    break;
+                }
+                case CardKind.Armageddon:
+                    ps.ArmageddonThisTurn = true;
+                    LogText($"{ps.Name} launches Armageddon: nuclear cards are free this turn");
+                    done();
+                    break;
+                case CardKind.RocketStrike:
+                {
+                    var opts = new List<int>();
+                    for (int t = 0; t < Map.Count; t++)
+                        if (Map[t].Type == card.Target && State.Territories[t].Owner >= 0 && State.Territories[t].Owner != p && State.Territories[t].Units > 0) opts.Add(t);
+                    if (opts.Count == 0) { LogText("No target for the rocket strike"); done(); break; }
+                    OpenPrompt(new Prompt { Kind = PromptKind.ChooseTerritory, Player = p, Text = "Rocket strike target", Options = opts, OnResponse = t =>
+                    {
+                        int roll = RollDie(6);
+                        int owner = State.Territories[t].Owner;
+                        LogText($"Rocket strike on {TName(t)} rolls {roll}");
+                        DestroyUnits(t, roll);
+                        CheckElimination(owner);
+                        done();
+                    } });
                     break;
                 }
                 case CardKind.ScatterBomb:
                 {
-                    for (int i = 0; i < 3; i++)
+                    for (int i = 0; i < Math.Max(1, card.Amount); i++)
                     {
                         int t = DrawTerritoryCard(card.Target);
                         var ts = State.Territories[t];
@@ -329,51 +459,52 @@ namespace Risk2210.Core
                     done();
                     break;
                 }
-                case CardKind.TheMother:
-                {
-                    int t = DrawTerritoryCard(TerritoryType.Land, skipDevastated: true);
-                    var affected = new HashSet<int>();
-                    foreach (int n in Map[t].Neighbors)
-                        if (Map[n].Type == TerritoryType.Land && !State.Territories[n].Devastated)
-                        {
-                            if (State.Territories[n].Owner >= 0) affected.Add(State.Territories[n].Owner);
-                            DestroyUnits(n, State.Territories[n].Units);
-                        }
-                    if (State.Territories[t].Owner >= 0) affected.Add(State.Territories[t].Owner);
-                    LogText($"The Mother detonates on {TName(t)}");
-                    Devastate(t);
-                    foreach (int q in affected) CheckElimination(q);
-                    done();
-                    break;
-                }
-                case CardKind.Armageddon:
-                {
-                    for (int t = 0; t < Map.Count; t++) DestroyUnits(t, State.Territories[t].Units / 2);
-                    LogText("Armageddon: every territory loses half its units");
-                    for (int q = 0; q < State.NumPlayers; q++) CheckElimination(q);
-                    done();
-                    break;
-                }
                 case CardKind.InvadeEarth:
                 {
-                    int t = DrawTerritoryCard(TerritoryType.Land, skipDevastated: true);
-                    ps.InvadeEarthTarget = t;
-                    LogText($"{ps.Name} may invade {TName(t)} from the Moon this turn");
+                    int t = -1;
+                    for (int guard = 0; guard < 60; guard++)
+                    {
+                        int c = DrawTerritoryCard(TerritoryType.Land, skipDevastated: true);
+                        if (State.Territories[c].Owner != p) { t = c; break; }
+                    }
+                    if (t >= 0) { ps.InvadeEarthTarget = t; LogText($"{ps.Name} may invade {TName(t)} from the Moon this turn"); }
                     done();
                     break;
                 }
-                case CardKind.ScoutForces:
-                {
-                    int t = DrawTerritoryCard(TerritoryType.Land, skipDevastated: true);
-                    if (State.Territories[t].Owner == p) { State.Territories[t].Mods += 5; EmitDeploy(p, t, 5); LogText($"{ps.Name} places 5 scout MODs on {TName(t)}"); }
-                    else { ps.ScoutTerritory = t; LogText($"{ps.Name} has scouts waiting in {TName(t)}"); }
+                case CardKind.EnergyExtraction:
+                    ps.LunarExtractionThisTurn = true;
                     done();
                     break;
-                }
                 default:
                     done();
                     break;
             }
+        }
+
+        /// <summary>d6 → region id for the zone-strike nuclear cards (manual tables).</summary>
+        private int RollZone(TerritoryType type)
+        {
+            if (type == TerritoryType.Land) return RollDie(6) - 1;                 // continents are regions 0..5
+            if (type == TerritoryType.Moon) return 11 + (RollDie(6) - 1) / 2;      // lunar colonies are regions 11..13
+            int roll;
+            do roll = RollDie(6); while (roll == 6);                              // water colonies are regions 6..10
+            return 5 + roll;
+        }
+
+        /// <summary>Removes MODs from a player's largest stacks (never a territory's last unit) for MOD Reduction.</summary>
+        private void RemoveModsAuto(int q, int n)
+        {
+            int removed = 0;
+            while (removed < n)
+            {
+                int best = -1;
+                for (int t = 0; t < Map.Count; t++)
+                    if (State.Territories[t].Owner == q && State.Territories[t].Mods > 0 && State.Territories[t].Units > 1 && (best < 0 || State.Territories[t].Mods > State.Territories[best].Mods)) best = t;
+                if (best < 0) break;
+                State.Territories[best].Mods--;
+                removed++;
+            }
+            if (removed > 0) { var ev = GameEvent.Make(GameEventType.UnitsDestroyed, $"{Name(q)} removes {removed} MOD(s)"); ev.Player = q; ev.Amount = removed; ev.To = -1; Emit(ev); }
         }
 
         public void EmitDeploy(int p, int t, int n)
@@ -398,7 +529,7 @@ namespace Risk2210.Core
                     foreach (int id in ps.Hand)
                     {
                         var c = CardCatalogue.Get(id);
-                        if (c.Timing == CardTiming.Scoring && State.CommanderInPlay(p, c.Deck)) influence++; else keep.Add(id);
+                        if (c.Timing == CardTiming.Scoring && State.CommanderInPlay(p, c.Deck)) influence += 3; else keep.Add(id);
                     }
                     ps.Hand = keep;
                 }

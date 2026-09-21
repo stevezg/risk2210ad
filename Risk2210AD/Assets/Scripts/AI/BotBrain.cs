@@ -127,8 +127,9 @@ namespace Risk2210.AI
                 var c = CardCatalogue.Get(ps.Hand[i]);
                 if (c.Timing != CardTiming.BeforeFirstInvasion) continue;
                 if (!s.CommanderInPlay(p, c.Deck)) continue;
-                if (c.Kind == CardKind.Armageddon && s.Score(p) >= 10) continue;
-                if (ps.Energy - c.Cost < 1) continue;
+                if (c.Kind == CardKind.Armageddon) { bool other = false; foreach (int id in ps.Hand) { var o = CardCatalogue.Get(id); if (o.Deck == CommanderType.Nuclear && o.Cost > 0 && o.Kind != CardKind.Armageddon) other = true; } if (!other) continue; }
+                if (c.Kind == CardKind.EnergyExtraction && !s.Map.Regions.Any(r => r.Type == TerritoryType.Moon && s.ControlsRegion(p, r.Id))) continue;
+                if (ps.Energy - s.CardCost(p, c) < 1) continue;
                 return i;
             }
             return -1;
@@ -142,8 +143,9 @@ namespace Risk2210.AI
                 if (inv.Captured)
                 {
                     int maxMove = s.Territories[inv.From].Units - 1;
+                    int minMove = Math.Max(1, Math.Min(inv.LastDice, maxMove));
                     int keep = s.IsBorder(p, inv.From) ? Math.Min(maxMove, 2) : 0;
-                    return new MoveIn { Count = Math.Max(1, maxMove - keep) };
+                    return new MoveIn { Count = Math.Max(minMove, maxMove - keep) };
                 }
                 int units = s.Territories[inv.From].Units;
                 if (units < 2 || (units <= s.Territories[inv.To].Units && inv.AttackedOnce)) return new EndInvasion();
@@ -181,6 +183,11 @@ namespace Risk2210.AI
             int bestFrom = -1;
             foreach (int t in s.OwnedTerritories(p))
                 if (!s.IsBorder(p, t) && s.Territories[t].Mods >= 2 && (bestFrom < 0 || s.Territories[t].Mods > s.Territories[bestFrom].Mods)) bestFrom = t;
+            for (int i = 0; i < s.Players[p].Hand.Count; i++)
+            {
+                var c = CardCatalogue.Get(s.Players[p].Hand[i]);
+                if (c.Timing == CardTiming.EndOfTurn && s.CommanderInPlay(p, c.Deck) && !s.Players[p].FortifiedThisTurn) return new PlayCard { HandIndex = i };
+            }
             if (bestFrom < 0) return new EndFortification();
             var dests = Border(s, p).Where(t => t != bestFrom && s.FortifyPathExists(p, bestFrom, t)).ToList();
             if (dests.Count == 0) return new EndFortification();
@@ -193,6 +200,12 @@ namespace Risk2210.AI
             {
                 case PromptKind.DefenseDice: return new RespondPrompt { Value = pr.MaxDice };
                 case PromptKind.BonusDeck: return new RespondPrompt { Value = 0 };
+                case PromptKind.ChoosePlayer:
+                {
+                    int best = pr.Options[0];
+                    foreach (int q in pr.Options) if (s.Players[q].Hand.Count > s.Players[best].Hand.Count) best = q;
+                    return new RespondPrompt { Value = best };
+                }
                 case PromptKind.ChooseTerritory:
                 {
                     var border = pr.Options.Where(t => s.Territories[t].Owner == p && s.IsBorder(p, t)).ToList();
@@ -205,12 +218,19 @@ namespace Risk2210.AI
                     var hand = s.Players[p].Hand;
                     var tt = s.Map[inv.To].Type;
                     int attackers = s.Territories[inv.From].Units;
+                    int defenders = s.Territories[inv.To].Units;
                     for (int i = 0; i < hand.Count; i++)
                     {
                         var c = CardCatalogue.Get(hand[i]);
-                        if (c.Timing != CardTiming.OnInvasionDeclared || !s.CommanderInPlay(p, c.Deck)) continue;
-                        if (c.Kind == CardKind.StealthMods && c.Target == tt) return new RespondPrompt { Value = i };
-                        if (c.Kind == CardKind.CeaseFire && attackers >= 6 && s.Players[p].Energy >= c.Cost + 1) return new RespondPrompt { Value = i };
+                        if (!s.ReactiveCardPlayable(p, c)) continue;
+                        switch (c.Kind)
+                        {
+                            case CardKind.StealthMods: return new RespondPrompt { Value = i };
+                            case CardKind.StealthStation: return new RespondPrompt { Value = i };
+                            case CardKind.DeathTrap: if (attackers >= 4) return new RespondPrompt { Value = i }; break;
+                            case CardKind.CeaseFire: if (attackers >= 6 && s.Players[p].Energy >= c.Cost + 1) return new RespondPrompt { Value = i }; break;
+                            case CardKind.Evacuation: if (attackers >= defenders * 3 && defenders >= 3) return new RespondPrompt { Value = i }; break;
+                        }
                     }
                     return new RespondPrompt { Value = -1 };
                 }

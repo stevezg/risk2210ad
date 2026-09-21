@@ -47,11 +47,17 @@ namespace Risk2210.View
             targetSize = Mathf.Clamp(size, MinSize, MaxSize);
         }
 
+        public Rect HomeRect;
+
         public void FrameRect(Rect r)
         {
             float size = Mathf.Max(r.height / 2f, r.width / 2f / cam.aspect) * 1.05f;
             FocusOn(r.center, size);
         }
+
+        /// <summary>Reframes the whole board (the rect given to <see cref="SetHome"/>).</summary>
+        public void Home() { if (HomeRect.width > 0) FrameRect(HomeRect); }
+        public void SetHome(Rect r) { HomeRect = r; FrameRect(r); }
 
         public void Shake(float amount) => shake = Mathf.Max(shake, amount);
 
@@ -88,6 +94,7 @@ namespace Risk2210.View
             if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) targetPos.y -= speed;
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) targetPos.x -= speed;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) targetPos.x += speed;
+            if (Input.GetKeyDown(KeyCode.R)) Home();
         }
 
         private void LateUpdate()

@@ -43,7 +43,7 @@ namespace Risk2210.AI
                 {
                     var r = director.Submit(cmd);
                     if (!r.Ok) Debug.LogWarning($"Bot {director.Name(pendingPlayer)} command {cmd.GetType().Name} rejected: {r.Error}");
-                    cooldown = PaceSeconds;
+                    cooldown = director.State.Phase == PhaseId.Setup ? Mathf.Min(PaceSeconds, 0.06f) : PaceSeconds;
                 }
                 return;
             }

@@ -28,9 +28,12 @@ namespace Risk2210.Core.States
                     S.Players[p].FortifiedThisTurn = true;
                     var ev = GameEvent.Make(GameEventType.Fortified, $"{D.Name(p)} fortifies {ft.Mods + cmdMoves} unit(s) from {D.TName(ft.From)} to {D.TName(ft.To)}");
                     ev.Player = p; ev.From = ft.From; ev.To = ft.To; ev.Amount = ft.Mods + cmdMoves; D.Emit(ev);
+                    if (S.Players[p].ExtraFortifies > 0) { S.Players[p].ExtraFortifies--; D.LogText($"{D.Name(p)} may fortify again"); return Ok; }
                     D.EndTurn();
                     return Ok;
                 }
+                case PlayCard pc:
+                    return DeploymentState.PlayCardNow(D, p, pc.HandIndex, CardTiming.EndOfTurn);
                 case EndFortification _:
                     D.EndTurn();
                     return Ok;

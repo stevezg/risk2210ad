@@ -8,6 +8,8 @@ namespace Risk2210.UI
     {
         private void Start()
         {
+            foreach (var a in System.Environment.GetCommandLineArgs())
+                if (a == "-screenshot" || a == "-autostart") { Destroy(this); GameBootstrap.Launch(); return; }
             var doc = UiPanel.Create(gameObject, "MainMenu", "Hud", "MainMenu");
             var root = doc.rootVisualElement;
             var players = root.Q<VisualElement>("players");

@@ -37,7 +37,8 @@ namespace Risk2210.View
             switch (ev.Type)
             {
                 case GameEventType.ModsDeployed:
-                    yield return Pulse(Board.WorldPos(ev.To), BoardView.PlayerColor(ev.Player), 0.5f, 0.25f);
+                    if (State.Phase == PhaseId.Setup) StartCoroutine(Pulse(Board.WorldPos(ev.To), BoardView.PlayerColor(ev.Player), 0.4f, 0.2f));
+                    else yield return Pulse(Board.WorldPos(ev.To), BoardView.PlayerColor(ev.Player), 0.5f, 0.25f);
                     break;
                 case GameEventType.UnitsMoved:
                 case GameEventType.Fortified:
@@ -66,7 +67,7 @@ namespace Risk2210.View
                     yield return Shockwave(Board.WorldPos(ev.To), BoardView.PlayerColor(ev.Player));
                     break;
                 case GameEventType.UnitsDestroyed:
-                    yield return Shockwave(Board.WorldPos(ev.To), new Color(1f, 0.3f, 0.2f), 0.45f, 1.2f);
+                    if (ev.To >= 0) yield return Shockwave(Board.WorldPos(ev.To), new Color(1f, 0.3f, 0.2f), 0.45f, 1.2f);
                     break;
                 case GameEventType.TerritoryDevastated:
                     Cam.Shake(0.35f);
@@ -74,6 +75,10 @@ namespace Risk2210.View
                     break;
                 case GameEventType.TurnStarted:
                     Board.ClearHighlights();
+                    Cam.Home();
+                    break;
+                case GameEventType.YearStarted:
+                    Cam.Home();
                     break;
             }
             Board.RefreshAll(State, true);

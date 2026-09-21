@@ -49,7 +49,8 @@ namespace Risk2210.View
         public void Build(MapGraph map)
         {
             Map = map;
-            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            font = Resources.Load<Font>("gun4f");
+            if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             territoryMaterial = new Material(Shader.Find("Risk2210/NeonTerritory"));
             lineMaterial = SolidMaterial(new Color(0.4f, 0.48f, 0.65f, 0.8f));
             waterLineMaterial = SolidMaterial(new Color(0.25f, 0.6f, 1f, 0.9f));

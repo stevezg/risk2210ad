@@ -58,11 +58,19 @@ namespace Risk2210.Core
         public bool FortifiedThisTurn;
         public int InvadeEarthTarget = -1;
         public int InvasionsThisTurn;
+        public int ExtraFortifies;                       // Redeployment cards played this turn
+        public bool JammedThisTurn;                      // Frequency Jam target: no command cards during the active player's turn
+        public bool ArmageddonThisTurn;                  // nuclear cards cost nothing this turn
+        public bool LunarExtractionThisTurn;             // Energy Extraction: +7 at end of turn if a lunar colony is complete
+        public List<int> HiddenEnergyTargets = new List<int>();
+        public List<int> CeaseFireWith = new List<int>();  // players whose territories may not be attacked this turn
 
         public PlayerState Clone()
         {
             var p = (PlayerState)MemberwiseClone();
             p.Hand = new List<int>(Hand);
+            p.HiddenEnergyTargets = new List<int>(HiddenEnergyTargets);
+            p.CeaseFireWith = new List<int>(CeaseFireWith);
             return p;
         }
     }
@@ -91,7 +99,7 @@ namespace Risk2210.Core
 
     public enum SetupStage { Claim, PlaceMods, Pieces, Done }
 
-    public enum PromptKind { None, ClaimTerritory, PlaceStartingMod, PlaceStartingPieces, DefenseDice, ReactiveCard, BonusDeck, ChooseTerritory }
+    public enum PromptKind { None, ClaimTerritory, PlaceStartingMod, PlaceStartingPieces, DefenseDice, ReactiveCard, BonusDeck, ChooseTerritory, ChoosePlayer }
 
     /// <summary>A decision the engine is waiting on from a specific player, outside the normal command flow.</summary>
     public sealed class Prompt
@@ -248,6 +256,7 @@ namespace Risk2210.Core
             if (d.Owner == p) { why = "you already control the target"; return false; }
             if (f.Devastated || d.Devastated) { why = "devastated territories are impassable"; return false; }
             if (f.Units < 2) { why = "need at least 2 units to invade"; return false; }
+            if (d.Owner >= 0 && Players[p].CeaseFireWith.Contains(d.Owner)) { why = "a Cease Fire protects " + Players[d.Owner].Name + "'s territories this turn"; return false; }
             var ft = Map[from].Type; var tt = Map[to].Type;
             if ((ft == TerritoryType.Water || tt == TerritoryType.Water) && !CommanderInPlay(p, CommanderType.Naval))
             { why = "a Naval Commander must be in play to invade into or out of water"; return false; }
@@ -326,13 +335,31 @@ namespace Risk2210.Core
             return false;
         }
 
+        /// <summary>Energy a card costs this player right now (Armageddon makes nuclear cards free).</summary>
+        public int CardCost(int p, CardDef c) => c.Deck == CommanderType.Nuclear && Players[p].ArmageddonThisTurn ? 0 : c.Cost;
+
+        /// <summary>Whether a reactive card in hand could legally be played against the current invasion.</summary>
+        public bool ReactiveCardPlayable(int p, CardDef c)
+        {
+            if (c.Timing != CardTiming.OnInvasionDeclared || !Invasion.Active) return false;
+            if (!CommanderInPlay(p, c.Deck) || Players[p].Energy < CardCost(p, c) || Players[p].JammedThisTurn) return false;
+            var tt = Map[Invasion.To].Type;
+            switch (c.Kind)
+            {
+                case CardKind.StealthMods: return c.Target == tt && Invasion.Defender >= 0;
+                case CardKind.StealthStation: return tt == TerritoryType.Land && Invasion.Defender == p && !Territories[Invasion.To].SpaceStation && CountSpaceStations(p) < Rules.MaxSpaceStations;
+                case CardKind.DeathTrap: return c.Target == tt && Invasion.Defender == p;
+                case CardKind.CeaseFire: return Invasion.Defender == p;
+                case CardKind.Evacuation: return Invasion.Defender == p && OwnedTerritories(p).Count > 1;
+                default: return false;
+            }
+        }
+
         public bool HasReactiveCard(int p)
         {
+            if (Players[p].JammedThisTurn) return false;
             foreach (int id in Players[p].Hand)
-            {
-                var c = CardCatalogue.Get(id);
-                if (c.Timing == CardTiming.OnInvasionDeclared && CommanderInPlay(p, c.Deck) && Players[p].Energy >= c.Cost) return true;
-            }
+                if (ReactiveCardPlayable(p, CardCatalogue.Get(id))) return true;
             return false;
         }
     }

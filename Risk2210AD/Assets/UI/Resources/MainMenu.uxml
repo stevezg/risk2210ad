@@ -1,4 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <Style src="Hud.uss" />
+  <Style src="MainMenu.uss" />
   <ui:VisualElement name="root" class="root menu-root">
     <ui:VisualElement class="panel menu">
       <ui:Label text="RISK" class="menu-title" />

@@ -25,6 +25,37 @@ namespace Risk2210
             else Launch();
         }
 
+        private static void ParseCommandLine()
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "-spectate") GameSettings.Spectate = true;
+                else if (args[i] == "-players" && i + 1 < args.Length) GameSettings.Players = Mathf.Clamp(int.Parse(args[i + 1]), 2, 5);
+                else if (args[i] == "-seed" && i + 1 < args.Length) GameSettings.Seed = int.Parse(args[i + 1]);
+                else if (args[i] == "-screenshot" && i + 1 < args.Length) screenshotPath = args[i + 1];
+                else if (args[i] == "-screenshot-delay" && i + 1 < args.Length) screenshotDelay = float.Parse(args[i + 1]);
+            }
+        }
+
+        private static string screenshotPath;
+        private static float screenshotDelay = 8f;
+        private float screenshotTimer;
+
+        private void Update()
+        {
+            if (screenshotPath == null) return;
+            screenshotTimer += Time.deltaTime;
+            if (screenshotTimer > screenshotDelay)
+            {
+                ScreenCapture.CaptureScreenshot(screenshotPath);
+                screenshotPath = null;
+                Invoke(nameof(Quit), 1.5f);
+            }
+        }
+
+        private void Quit() => Application.Quit();
+
         public static GameBootstrap Launch()
         {
             var go = new GameObject("Risk2210");
@@ -33,6 +64,8 @@ namespace Risk2210
 
         private void Start()
         {
+            ParseCommandLine();
+            Application.runInBackground = true;
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 1;
 
@@ -64,7 +97,8 @@ namespace Risk2210
             earth = Rect.MinMaxRect(earth.xMin - 1.5f, Director.Map.Bounds().yMin - 1f, earth.xMax + 1.5f, earth.yMax + 1f);
             tactical.Bounds = Rect.MinMaxRect(earth.xMin, earth.yMin, earth.xMax, earth.yMax);
             tactical.SnapTo(earth.center, 8f);
-            tactical.FrameRect(Rect.MinMaxRect(earth.xMin, Director.Map.Bounds(TerritoryType.Land).yMin - 1.5f, earth.xMax, earth.yMax));
+            // leave room for the side panels (about 300 px each) and the top/bottom bars
+            tactical.SetHome(Rect.MinMaxRect(earth.xMin - 5.5f, Director.Map.Bounds(TerritoryType.Land).yMin - 3.5f, earth.xMax + 5.5f, earth.yMax + 1.5f));
 
             // --- animation --------------------------------------------------------
             var combat = boardGo.AddComponent<CombatOverlay>();

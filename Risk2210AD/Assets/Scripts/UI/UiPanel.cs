@@ -19,9 +19,14 @@ namespace Risk2210.UI
                 settings.match = 0.5f;
                 settings.sortingOrder = 10;
             }
+            bool wasActive = host.activeSelf;
+            host.SetActive(false);                       // assign settings before the document enables
             var doc = host.AddComponent<UIDocument>();
             doc.panelSettings = settings;
             doc.visualTreeAsset = Resources.Load<VisualTreeAsset>(uxmlResource);
+            var font = Resources.Load<Font>("gun4f");
+            if (font != null) doc.rootVisualElement.style.unityFontDefinition = new StyleFontDefinition(FontDefinition.FromFont(font));
+            host.SetActive(wasActive);
             foreach (var uss in ussResources)
             {
                 var sheet = Resources.Load<StyleSheet>(uss);

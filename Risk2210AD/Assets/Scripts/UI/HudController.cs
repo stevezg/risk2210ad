@@ -259,8 +259,10 @@ namespace Risk2210.UI
                 var name = new Label(ps.Name + (ps.IsBot ? "" : " (you)") + (ps.Eliminated ? " ✕" : "")); name.AddToClassList("player-name");
                 var cmds = new StringBuilder();
                 for (int k = 0; k < MapGraph.NumCommanders; k++) if (S.CommanderInPlay(p, (CommanderType)k)) cmds.Append("LDNXS"[k]);
-                var stats = new Label($"E {ps.Energy}  T {S.CountTerritories(p)}  S {S.Score(p)}  ★{S.CountSpaceStations(p)}  ▮{ps.Hand.Count}  [{cmds}]"); stats.AddToClassList("player-stats");
-                row.Add(sw); row.Add(name); row.Add(stats);
+                var stats = new Label($"ENERGY {ps.Energy}   TERR {S.CountTerritories(p)}   SCORE {S.Score(p)}\nSTATIONS {S.CountSpaceStations(p)}   CARDS {ps.Hand.Count}   CMD {cmds}"); stats.AddToClassList("player-stats");
+                var col = new VisualElement();
+                col.Add(name); col.Add(stats);
+                row.Add(sw); row.Add(col);
                 players.Add(row);
             }
         }
@@ -327,6 +329,9 @@ namespace Risk2210.UI
                         break;
                     case PromptKind.ChooseTerritory:
                         promptText.text += "\nClick a highlighted territory.";
+                        break;
+                    case PromptKind.ChoosePlayer:
+                        foreach (int q in pr.Options) { int qq = q; Btn(Director.Name(q), () => Submit(new RespondPrompt { Value = qq })); }
                         break;
                 }
                 return;
@@ -445,19 +450,20 @@ namespace Risk2210.UI
             var ps = S.Players[me];
             bool reactive = S.Prompt != null && S.Prompt.Kind == PromptKind.ReactiveCard && actor == me;
             bool canPlay = actor == me && S.Prompt == null && (S.Phase == PhaseId.Deployment && ps.Pool == 0 || S.Phase == PhaseId.Invasion && !ps.InvasionDeclaredThisTurn);
+            bool canPlayEnd = actor == me && S.Prompt == null && S.Phase == PhaseId.Fortification;
             for (int i = 0; i < ps.Hand.Count; i++)
             {
                 int idx = i;
                 var c = CardCatalogue.Get(ps.Hand[i]);
-                bool usable = reactive ? c.Timing == CardTiming.OnInvasionDeclared : canPlay && c.Timing == CardTiming.BeforeFirstInvasion;
-                usable &= S.CommanderInPlay(me, c.Deck) && ps.Energy >= c.Cost;
+                bool usable = reactive ? S.ReactiveCardPlayable(me, c)
+                            : (canPlay && c.Timing == CardTiming.BeforeFirstInvasion || canPlayEnd && c.Timing == CardTiming.EndOfTurn) && S.CommanderInPlay(me, c.Deck) && ps.Energy >= S.CardCost(me, c);
                 var card = new VisualElement(); card.AddToClassList("card");
                 if (usable) card.AddToClassList("playable");
                 var head = new VisualElement(); head.AddToClassList("row");
                 var icon = new Label(c.Deck.ToString().Substring(0, 1)); icon.AddToClassList("card-icon"); icon.AddToClassList("deck-" + c.Deck);
                 var name = new Label(c.Name); name.AddToClassList("card-name");
                 head.Add(icon); head.Add(name);
-                var meta = new Label($"{c.Deck.ToString().ToUpperInvariant()} DECK · {c.Cost} ENERGY · {TimingText(c.Timing)}"); meta.AddToClassList("card-meta");
+                var meta = new Label($"{c.Deck.ToString().ToUpperInvariant()} DECK · {S.CardCost(me, c)} ENERGY · {TimingText(c.Timing)}"); meta.AddToClassList("card-meta");
                 card.Add(head); card.Add(meta);
                 card.RegisterCallback<MouseEnterEvent>(_ => ShowCardTooltip(c, usable, me));
                 card.RegisterCallback<MouseLeaveEvent>(_ => tooltip.style.display = DisplayStyle.None);
@@ -471,12 +477,12 @@ namespace Risk2210.UI
             }
         }
 
-        private static string TimingText(CardTiming t) => t == CardTiming.BeforeFirstInvasion ? "BEFORE FIRST INVASION" : t == CardTiming.OnInvasionDeclared ? "REACTIVE" : "FINAL SCORING";
+        private static string TimingText(CardTiming t) => t == CardTiming.BeforeFirstInvasion ? "BEFORE FIRST INVASION" : t == CardTiming.OnInvasionDeclared ? "OPPONENT INVADES" : t == CardTiming.EndOfTurn ? "END OF TURN" : "END OF GAME";
 
         private void ShowCardTooltip(CardDef c, bool usable, int me)
         {
             tooltipTitle.text = c.Name;
-            string why = usable ? "Playable now." : !S.CommanderInPlay(me, c.Deck) ? $"Needs your {c.Deck} Commander in play." : S.Players[me].Energy < c.Cost ? "Not enough energy." : "Cannot be played at this moment.";
+            string why = usable ? "Playable now." : !S.CommanderInPlay(me, c.Deck) ? $"Needs your {c.Deck} Commander in play." : S.Players[me].Energy < S.CardCost(me, c) ? "Not enough energy." : S.Players[me].JammedThisTurn ? "Your command cards are jammed this turn." : "Cannot be played at this moment.";
             tooltipBody.text = c.Text + "\n\n" + why;
             tooltip.style.display = DisplayStyle.Flex;
         }
