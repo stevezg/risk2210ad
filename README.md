@@ -4,6 +4,8 @@ A rules engine for *Risk 2210 A.D.* (Avalon Hill, 2001) written in C++17 with no
 external dependencies. It ships with a simple heuristic AI, an interactive
 text-mode player, and a self-play test suite.
 
+![GUI screenshot](docs/screenshot.png)
+
 ## Build & run
 
 ```sh
@@ -12,7 +14,21 @@ cmake --build build -j
 ./build/risk2210_tests                     # engine invariants + 160 self-play games
 ./build/risk2210_cli --players 4 --seed 42 # watch four AIs play
 ./build/risk2210_cli --players 3 --human 0 # you are Red, two AIs
+./build/risk2210_gui --players 4           # graphical game, you are Red
+./build/risk2210_gui --spectate            # watch the AIs play
 ```
+
+The GUI needs [raylib](https://www.raylib.com) (`brew install raylib`); CMake
+skips the `risk2210_gui` target if it isn't installed.
+
+### Playing in the GUI
+
+The prompt panel on the right always says what the engine is waiting for.
+Yellow rings mark territories you may click; orange rings mark legal attack
+targets from the selected territory; blue rings mark legal fortify
+destinations. Numbers in a territory are its units; letters above are its
+commanders (L, D, N, X = nuclear, S) and the white square is a Space Station.
+Cards in your hand are clickable when they can legally be played.
 
 ## Layout
 
@@ -25,6 +41,7 @@ cmake --build build -j
 | `include/risk2210/Agent.h` | decision-maker interface the engine calls into |
 | `include/risk2210/Agents.h`, `src/Agents.cpp` | `RandomAgent` (AI) and `HumanCliAgent` (terminal) |
 | `src/main.cpp` | CLI driver |
+| `src/gui/GuiAgent.h`, `src/gui/gui_main.cpp` | raylib GUI: engine runs on a worker thread, `GuiAgent` parks it for human input |
 | `tests/tests.cpp` | map checks, rule checks, self-play invariant fuzzing |
 
 ## Rules implemented
