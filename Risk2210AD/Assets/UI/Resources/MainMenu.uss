@@ -1,6 +1,0 @@
-.menu-root { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; background-color: rgb(6, 10, 20); }
-.menu { width: 460px; align-items: center; padding: 30px 40px; }
-.menu-title { color: rgb(255, 80, 70); font-size: 64px; -unity-font-style: bold; letter-spacing: 12px; }
-.menu-subtitle { color: rgb(80, 220, 255); font-size: 26px; letter-spacing: 8px; margin-bottom: 20px; }
-.start { margin-top: 24px; font-size: 16px; padding: 12px 26px; letter-spacing: 3px; }
-.hint { color: rgb(120, 150, 180); font-size: 11px; margin-top: 18px; }

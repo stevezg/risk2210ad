@@ -1,120 +1,61 @@
-# Risk 2210 A.D.
+# Risk 2210 A.D. — browser edition
 
-**The game is being ported to Unity/C# — see [`Risk2210AD/README.md`](Risk2210AD/README.md).**
-The C++ engine below is the reference implementation the port is derived from.
+A complete, single-file digital adaptation of the 2001 Avalon Hill board game, played over a
+photo of the physical board. No frameworks, no build step, no dependencies: open `index.html`
+in Safari or Chrome and play.
 
-## C++ reference engine
+![the board](board_photo.jpg)
 
-A rules engine for *Risk 2210 A.D.* (Avalon Hill, 2001) written in C++17 with no
-external dependencies. It ships with a simple heuristic AI, an interactive
-text-mode player, and a self-play test suite.
-
-![Tactical client](docs/screenshot-app.png)
-
-## Build & run
+Single-file, dependency-free adaptation (`index.html`, vanilla ES6) played over a photo of the
+physical board. You are RED against the BLUE bot; a neutral GRAY army holds the remaining
+territories (official 2-player rules). Open `index.html` in Safari or Chrome — a local server
+is only needed if your browser blocks font loading from `file://`:
 
 ```sh
-cmake -S . -B build
-cmake --build build -j
-./build/risk2210_tests                     # engine invariants + 160 self-play games
-./build/risk2210_cli --players 4 --seed 42 # watch four AIs play
-./build/risk2210_cli --players 3 --human 0 # you are Red, two AIs
-./build/risk2210_app                       # premium client (raylib + Dear ImGui) — Phase 1
-./build/risk2210_gui --players 4           # simple playable raylib GUI, you are Red
-./build/risk2210_gui --spectate            # watch the AIs play
+cd web && python3 -m http.server 8765   # then open http://localhost:8765/
 ```
 
-Both GUIs need [raylib](https://www.raylib.com) (`brew install raylib`); CMake
-skips them if it isn't installed. Dear ImGui and rlImGui are fetched by CMake
-at configure time (network needed on first configure).
+* `board_photo.jpg` / `moon_photo.jpg` — the Earth board and the lunar board. Territory nodes are
+  placed with CSS percentages so they stay locked to the artwork at any window size (`TDEF`).
+* The **EARTH / MOON** buttons (top-left of the map) switch boards; the button for the board you
+  are not looking at shows a badge counting the highlighted territories waiting there. Landing
+  sites (Sea of Crisis, Bay of Dew, Tycho) carry a gold ring.
+* `cover.jpg` — box art on the title screen. `gunship.ttf` — Gunship by Iconian Fonts
+  (free for non-commercial use).
 
-## Premium client (`risk2210_app`)
+## Map data
 
-The direction for the finished game: a sci-fi tactical terminal built on
-raylib + Dear ImGui with a custom neon theme, GLSL post-processing and a
-frame-independent animation pipeline. It is being built in phases on top of the
-same engine; the simple `risk2210_gui` stays playable until it reaches parity.
+Adjacency is transcribed from the official board and lunar schematics (Wikimedia Commons),
+extracted geometrically rather than by eye: each connector path was walked with the SVG
+`getPointAtLength` API and split at every territory circle it passes through. Notable
+corrections over a by-eye reading of the board photo: **Nova Brasilia connects to Amazon
+Desert** (not Nuevo Timoto, and not to Saharan Empire), **Poseidon connects to Continental
+Biospheres** (not the Northwestern Oil Emirate), **Sung Tzu connects to New Guinea** (not Java
+Cartel), Hawaiian Preserve has no link to Mexico, and Saharan Empire borders Imperial Balkania
+as well as Andorra. The two Pacific links that run off the edges of the board wrap around:
+Northwestern Oil Emirate–Pevek and Hawaiian Preserve–Neo Tokyo. The Moon uses all 30 edges of
+the lunar schematic.
 
-**Phase 1 (done):**
-* CMake builds raylib (Homebrew), Dear ImGui and rlImGui out of the box on macOS,
-  linking Cocoa / IOKit / OpenGL / CoreVideo.
-* Retina-aware render pipeline: scene → bloom shader → optional CRT/scanline
-  shader → screen (`src/app/Renderer.*`, shaders in `src/app/Shaders.h`).
-* World-space tactical grid shader with an energy sweep and vignette.
-* Territory graph rendered with glowing neon borders; hover and click-to-focus
-  highlights, ImGui tooltip with colony data.
-* Camera: wheel zoom toward the cursor, drag / WASD pan, click-to-focus with
-  eased interpolation, `R` to reframe the board.
-* Animation pipeline (`src/app/Animation.h`): `Animator` with tagged tweens and
-  easing curves, `TravelOrb` glowing transport nodes that travel along graph
-  paths (shift+click sends one from the selected territory; `Space` launches a
-  demo), and expanding pulse rings on arrival.
-* Custom ImGui theme (`src/app/Theme.*`): translucent dark panels, rounded
-  corners, cyan/amber accents; COMMAND DECK panel with visual toggles, year
-  track and controls overlay.
+Implements the 2001 gameplay manual and FAQ: sealed-bid turn order, income in MODs and energy,
+commanders with the d8 table, Space Stations (d8 defence, launches to the Moon), water/Moon
+gating, all five base-game command decks with their effects, 3-territory bonus, elimination,
+fortify chains through stations and landing sites, five-year limit and final scoring with
+Colony Influence (+3) and energy/unit tie-breaks. Armageddon is simplified to "your nuclear
+cards are free this turn".
 
-**Next phases:** bind the client to a running `Game` (player panels, phase
-controls, card hand with tooltips), combat dice overlay with screenshake and
-loss flashes, conquest border pulses, army-movement orbs driven by engine
-events, bot turns paced on the worker thread.
 
-### Playing in the GUI
+## Files
 
-The prompt panel on the right always says what the engine is waiting for.
-Yellow rings mark territories you may click; orange rings mark legal attack
-targets from the selected territory; blue rings mark legal fortify
-destinations. Numbers in a territory are its units; letters above are its
-commanders (L, D, N, X = nuclear, S) and the white square is a Space Station.
-Cards in your hand are clickable when they can legally be played.
+| File | |
+|---|---|
+| `index.html` | the entire game — layout, styles, rules engine, bot and UI |
+| `board_photo.jpg` | the Earth board |
+| `moon_photo.jpg` | the lunar board |
+| `cover.jpg` | box art for the title screen |
+| `gunship.ttf` | the display font (see `LICENSE-gunship.txt`) |
 
-## Layout
+## Credits
 
-| File | Purpose |
-|------|---------|
-| `include/risk2210/Types.h` | enums, constants (`kCommanderCost`, `kNumYears`, ...) and `Result` |
-| `include/risk2210/Map.h`, `src/Map.cpp` | the board: 42 land, 13 water, 14 lunar territories, 14 regions, adjacency |
-| `include/risk2210/Cards.h`, `src/Cards.cpp` | command card catalogue and per-commander deck composition |
-| `include/risk2210/Game.h`, `src/Game.cpp` | the rules engine: setup, bidding, turn phases, combat, cards, scoring |
-| `include/risk2210/Agent.h` | decision-maker interface the engine calls into |
-| `include/risk2210/Agents.h`, `src/Agents.cpp` | `RandomAgent` (AI) and `HumanCliAgent` (terminal) |
-| `src/main.cpp` | CLI driver |
-| `src/gui/GuiAgent.h`, `src/gui/gui_main.cpp` | simple raylib GUI: engine runs on a worker thread, `GuiAgent` parks it for human input |
-| `src/app/` | premium client: `App` (loop, input, panels), `BoardView`, `Renderer` (post-FX), `Animation.h`, `Theme`, `Shaders.h` |
-| `tests/tests.cpp` | map checks, rule checks, self-play invariant fuzzing |
-
-## Rules implemented
-
-* Setup: 4 random devastated land territories, 35/30/25 starting MODs for 3/4/5
-  players, territory claiming, starting Space Station + Land Commander + Diplomat,
-  3 starting energy. 2-player games use the official neutral-army variant.
-* Each year: sealed-bid energy auction for turn order (ties broken by die roll).
-* Turn: collect MODs and energy (territories ÷ 3, min 3, plus continent/colony
-  bonuses; +1 MOD per Space Station) → deploy → hire commanders (3E) / build
-  stations (5E, max 4, land only) / buy up to 4 cards (1E, matching commander
-  required) → play cards → invade → fortify once along a friendly path.
-* Combat: 1–3 attack dice vs 1–2 defence dice; ties to the defender. Attacking
-  commanders swap in 8-sided dice per the rulebook table (Nuclear always, Land
-  for land, Naval for water, Space for lunar, Diplomat never); every defending
-  commander swaps in a d8; all units in a Space Station defend with d8s.
-  Commanders that rolled d8s must move into a captured territory. Captured
-  Space Stations change hands (or are destroyed if the attacker already has 4).
-* Water needs a Naval Commander in play; the Moon needs a Space Commander,
-  is entered only from a Space Station to a landing site (Sea of Crisis, Bay
-  of Dew, Tycho), and Earth can only be invaded from the Moon via *Invade Earth*.
-* 3-territory bonus (once per turn): +1 energy and a command card.
-* Player elimination, empty-territory occupation, "must attack once" rule.
-* Command cards with engine-implemented effects: Reinforcements, Assemble
-  MODs, Stealth MODs (reactive), Cease Fire (reactive), Energy Crisis,
-  Redeployment, Energy Extraction, Scatter Bombs, The Mother, Armageddon,
-  Invade Earth, Scout Forces, and Colony Influence scoring cards.
-* Final scoring after year 5: territories + bonuses + influence cards, with
-  energy and then unit count as tie-breakers.
-
-## Known approximations
-
-* Lunar adjacency and the lunar colony bonus values (Cresinion 2,
-  Delphot 2, Sajon 3), are reconstructed rather than
-  transcribed; all of it lives in `src/Map.cpp` and is easy to correct.
-* The command card catalogue is a representative subset with the same flavour
-  as each official deck, not a card-for-card transcription. Add cards in
-  `src/Cards.cpp` and implement new `CardKind`s in `Game::applyCard`.
+Risk 2210 A.D. is © 2001 Avalon Hill / Hasbro. This is a personal, non-commercial adaptation
+built from the published gameplay manual, FAQ and command card summary. Gunship font by
+Daniel Zadorozny (Iconian Fonts), free for non-commercial use.
