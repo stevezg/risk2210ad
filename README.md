@@ -6,14 +6,20 @@ in Safari or Chrome and play.
 
 ![the board](board_photo.jpg)
 
-Single-file, dependency-free adaptation (`index.html`, vanilla ES6) played over a photo of the
-physical board. You are RED against the BLUE bot; a neutral GRAY army holds the remaining
-territories (official 2-player rules). Open `index.html` in Safari or Chrome — a local server
-is only needed if your browser blocks font loading from `file://`:
+You play RED against the BLUE machine intelligence; a neutral GRAY army holds the ground
+between you (the official 2-player rules). A local server is only needed if your browser blocks
+font loading from `file://`:
 
 ```sh
-cd web && python3 -m http.server 8765   # then open http://localhost:8765/
+python3 -m http.server 8765   # then open http://localhost:8765/
 ```
+
+## Playing
+
+Bid energy secretly for turn order, then recruit MODs, hire commanders, build Space Stations
+and buy command cards, invade, and fortify — five years, highest score wins. Click a territory
+to select it; legal targets light up. Cards in your hand glow when they can be played, and
+hovering one explains what it does and why. The comms log under the board narrates every roll.
 
 * `board_photo.jpg` / `moon_photo.jpg` — the Earth board and the lunar board. Territory nodes are
   placed with CSS percentages so they stay locked to the artwork at any window size (`TDEF`).
