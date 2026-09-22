@@ -9,10 +9,26 @@ is only needed if your browser blocks font loading from `file://`:
 cd web && python3 -m http.server 8765   # then open http://localhost:8765/
 ```
 
-* `board_photo.jpg` — the board, cropped to its edges; territory nodes are placed with CSS
-  percentages so they stay locked to the artwork at any window size (`TDEF` in the script).
-* `gunship.ttf` — Gunship by Iconian Fonts (free for non-commercial use).
-* Lunar colonies live in an inset over the ocean (dashed nodes are the landing sites).
+* `board_photo.jpg` / `moon_photo.jpg` — the Earth board and the lunar board. Territory nodes are
+  placed with CSS percentages so they stay locked to the artwork at any window size (`TDEF`).
+* The **EARTH / MOON** buttons (top-left of the map) switch boards; the button for the board you
+  are not looking at shows a badge counting the highlighted territories waiting there. Landing
+  sites (Sea of Crisis, Bay of Dew, Tycho) carry a gold ring.
+* `cover.jpg` — box art on the title screen. `gunship.ttf` — Gunship by Iconian Fonts
+  (free for non-commercial use).
+
+## Map data
+
+Adjacency is transcribed from the official board and lunar schematics (Wikimedia Commons),
+extracted geometrically rather than by eye: each connector path was walked with the SVG
+`getPointAtLength` API and split at every territory circle it passes through. Notable
+corrections over a by-eye reading of the board photo: **Nova Brasilia connects to Amazon
+Desert** (not Nuevo Timoto, and not to Saharan Empire), **Poseidon connects to Continental
+Biospheres** (not the Northwestern Oil Emirate), **Sung Tzu connects to New Guinea** (not Java
+Cartel), Hawaiian Preserve has no link to Mexico, and Saharan Empire borders Imperial Balkania
+as well as Andorra. The two Pacific links that run off the edges of the board wrap around:
+Northwestern Oil Emirate–Pevek and Hawaiian Preserve–Neo Tokyo. The Moon uses all 30 edges of
+the lunar schematic.
 
 Implements the 2001 gameplay manual and FAQ: sealed-bid turn order, income in MODs and energy,
 commanders with the d8 table, Space Stations (d8 defence, launches to the Moon), water/Moon

@@ -12,12 +12,23 @@
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; background: #05080f; color: var(--text); font-family: "Gunship", "Orbitron", "Segoe UI", sans-serif; letter-spacing: .5px; overflow: hidden; }
-body { display: grid; grid-template-columns: 250px 1fr 250px; grid-template-rows: 1fr auto; gap: 8px; padding: 8px; height: 100vh; }
+body { display: grid; grid-template-columns: 250px 1fr 256px; grid-template-rows: 1fr 132px; gap: 8px; padding: 8px; height: 100vh; }
 
 /* ---------- board ---------- */
 #stage { grid-column: 2; grid-row: 1; position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; }
-#board { position: relative; aspect-ratio: 2400 / 1641; max-width: 100%; max-height: 100%; width: 100%; box-shadow: 0 0 40px rgba(92,225,255,.25), 0 0 0 1px var(--line); border-radius: 6px; overflow: hidden; }
+#board { position: relative; aspect-ratio: 2400 / 1641; max-width: 100%; max-height: 100%; width: 100%; box-shadow: 0 0 40px rgba(92,225,255,.25), 0 0 0 1px var(--line); border-radius: 6px; overflow: hidden; background: #04070e; }
+.layer { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; }
+.layer.on { display: flex; }
+.wrap { position: relative; }
+#earth-wrap { width: 100%; height: 100%; }
+#moon-wrap { height: 100%; aspect-ratio: 500 / 417; }
 #board img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+#moon-wrap img { border-radius: 6px; }
+#viewbar { position: absolute; left: 8px; top: 8px; z-index: 9; display: flex; gap: 4px; }
+#viewbar button { padding: 4px 12px; font-size: 11px; letter-spacing: 2px; background: rgba(6,12,26,.88); }
+#viewbar button.on { background: var(--cyan); color: #04101a; border-color: var(--cyan); font-weight: bold; }
+#viewbar .badge { position: absolute; top: -6px; right: -6px; background: var(--amber); color: #201400; border-radius: 8px; font-size: 9px; padding: 0 5px; line-height: 14px; font-weight: bold; }
+#viewbar .wrapbtn { position: relative; }
 .node {
   position: absolute; transform: translate(-50%, -50%); width: 4.4%; aspect-ratio: 1; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; font-size: 1.05vw; font-weight: bold; color: #fff; cursor: pointer;
@@ -33,6 +44,7 @@ body { display: grid; grid-template-columns: 250px 1fr 250px; grid-template-rows
 .node .badges { position: absolute; top: -0.9vw; left: 50%; transform: translateX(-50%); font-size: .6vw; color: #ffe9a0; white-space: nowrap; text-shadow: 0 0 3px #000; }
 .node .station { position: absolute; right: -0.35vw; top: -0.35vw; width: .8vw; height: .8vw; background: #fff; border: 1px solid #000; }
 .node.hl-option { box-shadow: 0 0 0 3px #ffd54d, 0 0 18px 6px rgba(255, 213, 77, .8); animation: pulse 1s infinite alternate; }
+.layer:not(.on) .node { animation: none !important; }
 .node.hl-target { box-shadow: 0 0 0 3px #ff8a3d, 0 0 18px 6px rgba(255, 138, 61, .85); animation: pulse .7s infinite alternate; }
 .node.hl-fortify { box-shadow: 0 0 0 3px #5ce1ff, 0 0 18px 6px rgba(92, 225, 255, .8); animation: pulse 1s infinite alternate; }
 .node.hl-selected { box-shadow: 0 0 0 3px #fff, 0 0 22px 8px rgba(255,255,255,.7); z-index: 6; }
@@ -45,15 +57,12 @@ body { display: grid; grid-template-columns: 250px 1fr 250px; grid-template-rows
 @keyframes shock { from { transform: translate(-50%,-50%) scale(.4); opacity: 1; } to { transform: translate(-50%,-50%) scale(3.2); opacity: 0; } }
 .orb { position: absolute; width: 1.2%; aspect-ratio: 1; border-radius: 50%; background: #fff; box-shadow: 0 0 12px 4px var(--cyan); pointer-events: none; transform: translate(-50%,-50%); z-index: 7; transition: left .6s ease-in-out, top .6s ease-in-out; }
 
-/* moon inset over the ocean / logo area */
-#moon { position: absolute; left: 20%; top: 73%; width: 30%; height: 25%; background: rgba(10, 12, 28, .8); border: 1px solid rgba(160,160,220,.5); border-radius: 8px; z-index: 3; }
-#moon .title { position: absolute; left: 6px; top: 3px; font-size: .8vw; color: #b0b0e0; letter-spacing: 2px; }
-#moon .node { width: 10%; font-size: .9vw; background: rgba(40,40,70,.7); }
-#moon .node .label { display: none; }
-#moon .node.site { border-style: dashed; border-color: #ffd54d; }
-#moon .legend { position: absolute; right: 6px; bottom: 2px; font-size: .55vw; color: #9090c0; }
-#moon svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-#moon svg line { stroke: rgba(160,160,220,.5); stroke-width: 1.5; }
+/* lunar view */
+#moon-wrap .node { width: 5.6%; font-size: 1.05vw; }
+#moon-wrap .node .badges { top: -1vw; }
+#moon-wrap .node.site { box-shadow: 0 0 0 2px rgba(255,213,77,.9); }
+#moonlegend { position: absolute; right: 10px; bottom: 8px; font-size: 10px; color: #9aa4d0; text-align: right; line-height: 1.5; z-index: 8; text-shadow: 0 0 4px #000; }
+#moonlegend b { color: var(--amber); }
 
 /* ---------- panels ---------- */
 .col { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
@@ -62,7 +71,7 @@ body { display: grid; grid-template-columns: 250px 1fr 250px; grid-template-rows
 #right { grid-column: 3; grid-row: 1 / span 2; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: 0 0 18px rgba(92,225,255,.12); }
 .card h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 3px; color: var(--cyan); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
-.title { font-size: 17px; color: var(--red); letter-spacing: 4px; text-shadow: 0 0 10px rgba(255,77,90,.7); }
+.title { font-size: 15px; color: var(--red); letter-spacing: 4px; text-shadow: 0 0 10px rgba(255,77,90,.7); }
 .title small { display: block; font-size: 11px; color: var(--cyan); letter-spacing: 3px; }
 .kv { display: flex; justify-content: space-between; font-size: 11px; margin: 3px 0; }
 .kv span:first-child { color: var(--dim); }
@@ -74,11 +83,13 @@ body { display: grid; grid-template-columns: 250px 1fr 250px; grid-template-rows
 .player.active { background: rgba(92,225,255,.12); }
 .player .name { font-weight: bold; letter-spacing: 2px; margin-bottom: 3px; }
 .player .stat { color: var(--dim); font-size: 10px; line-height: 1.5; }
-#regions { font-size: 9px; line-height: 1.5; display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; }
+#regions { font-size: 10px; line-height: 1.55; }
 #regions div { display: flex; justify-content: space-between; }
-#log { flex: 1; min-height: 60px; overflow-y: auto; font-size: 10px; line-height: 1.45; color: #b8c8dc; }
-#log div:last-child { color: #fff; }
-#log .y { color: var(--amber); }
+#logbar { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-height: 0; }
+#log { flex: 1; overflow-y: auto; font-size: 11px; line-height: 1.6; color: #cddcec; padding-right: 6px; }
+#log div { break-inside: avoid; }
+#log div:last-child { color: #fff; text-shadow: 0 0 6px rgba(255,255,255,.35); }
+#log .y { color: var(--amber); font-weight: bold; }
 
 #prompt-title { color: var(--amber); font-size: 14px; letter-spacing: 2px; }
 #prompt-text { font-size: 11px; line-height: 1.5; margin: 6px 0; min-height: 30px; }
@@ -93,6 +104,7 @@ button.toggled { background: rgba(160,110,20,.95); border-color: #ffc850; }
 button.small { padding: 3px 6px; font-size: 10px; }
 
 #hand { flex: 1; overflow-y: auto; min-height: 60px; }
+#menu .cover { width: 100%; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 14px; box-shadow: 0 0 30px rgba(255,77,90,.25); }
 #prompt-text { max-height: 120px; overflow-y: auto; }
 .ccard { background: rgba(20,40,70,.9); border: 1px solid rgba(120,150,200,.5); border-radius: 6px; padding: 6px 8px; margin-bottom: 5px; font-size: 10px; position: relative; }
 .ccard.playable { border-color: var(--cyan); background: rgba(30,70,110,.95); cursor: pointer; }
@@ -149,16 +161,22 @@ button.small { padding: 3px 6px; font-size: 10px; }
   </div>
   <div class="card"><h3>COMMANDERS</h3><div id="players"></div></div>
   <div class="card"><h3>CONTINENTS &amp; COLONIES</h3><div id="regions"></div></div>
-  <div class="card" style="flex:1 1 120px; display:flex; flex-direction:column; min-height:120px"><h3>COMMS LOG</h3><div id="log"></div></div>
 </div>
 
 <div id="stage">
   <div id="board">
-    <img src="board_photo.jpg" alt="Risk 2210 A.D. board">
-    <div id="moon"><div class="title">LUNAR COLONIES</div><div class="legend">dashed = landing site · hover for names</div><svg id="moon-lines"></svg></div>
+    <div class="layer on" id="earth-layer"><div class="wrap" id="earth-wrap"><img src="board_photo.jpg" alt="Risk 2210 A.D. board"></div></div>
+    <div class="layer" id="moon-layer"><div class="wrap" id="moon-wrap"><img src="moon_photo.jpg" alt="The Moon">
+      <div id="moonlegend">Landing sites (gold ring): <b>Sea of Crisis · Bay of Dew · Tycho</b><br>Reachable only from a Space Station on Earth</div>
+    </div></div>
+    <div id="viewbar">
+      <span class="wrapbtn"><button id="view-earth" class="on">EARTH</button><span class="badge" id="earth-badge" style="display:none"></span></span>
+      <span class="wrapbtn"><button id="view-moon">MOON</button><span class="badge" id="moon-badge" style="display:none"></span></span>
+    </div>
     <div id="combat" class="card"></div>
   </div>
 </div>
+<div id="logbar" class="card"><h3>COMMS LOG</h3><div id="log"></div></div>
 
 <div id="right" class="col">
   <div class="card">
@@ -176,7 +194,7 @@ button.small { padding: 3px 6px; font-size: 10px; }
 
 <div id="menu">
   <div class="card">
-    <div class="big">RISK</div><div class="sub">2210 A.D.</div>
+    <img class="cover" src="cover.jpg" alt="Risk 2210 A.D.">
     <p>Five years. Earth, the oceans and the Moon. You command the <b style="color:var(--red)">RED</b> forces against the <b style="color:var(--blue)">BLUE</b> machine intelligence; a neutral <b style="color:var(--gray)">GRAY</b> army holds the ground between you.</p>
     <div class="row"><button id="btn-start" class="primary">LAUNCH CAMPAIGN</button><button id="btn-spectate">SPECTATE BOT VS BOT</button></div>
     <p>Bidding for turn order · recruit MODs, hire commanders, build Space Stations, buy command cards · invade with d6/d8 combat · fortify. Rules per the 2001 gameplay manual and FAQ.</p>
@@ -214,13 +232,14 @@ const TDEF = {
   "Western Ireland":["water","NAT",32.64,32.06], "New York":["water","NAT",25.33,37.40], "Nova Brasilia":["water","NAT",28.72,50.00],
   "Neo Paulo":["water","SAT",31.33,69.47], "The Ivory Reef":["water","SAT",39.95,66.41],
   "South Ceylon":["water","IND",69.97,61.07], "Microcorp":["water","IND",68.67,73.66], "Akara":["water","IND",76.50,80.92],
-  "Harpalus":["moon","CRE",8,30], "Sea of Rains":["moon","CRE",22,26], "Ocean of Storms":["moon","CRE",24,74], "Bay of Dew":["moon","CRE",8,72],
-  "Aristotle":["moon","DEL",38,18], "Sea of Serenity":["moon","DEL",42,50], "Sea of Crisis":["moon","DEL",56,28], "Sea of Nectar":["moon","DEL",54,78],
-  "Rhaeticus":["moon","SAJ",68,44], "Byrgius":["moon","SAJ",68,86], "Sea of Clouds":["moon","SAJ",80,62], "Straight Wall":["moon","SAJ",86,24],
-  "Marsh of Diseases":["moon","SAJ",86,90], "Tycho":["moon","SAJ",94,56],
+  "Harpalus":["moon","CRE",43,11], "Sea of Rains":["moon","CRE",44,30], "Ocean of Storms":["moon","CRE",31,49], "Bay of Dew":["moon","CRE",21,34],
+  "Aristotle":["moon","DEL",62,16], "Sea of Serenity":["moon","DEL",64,37], "Sea of Crisis":["moon","DEL",74,30], "Sea of Nectar":["moon","DEL",77,52],
+  "Rhaeticus":["moon","SAJ",54,56], "Byrgius":["moon","SAJ",21,63], "Sea of Clouds":["moon","SAJ",42,64], "Straight Wall":["moon","SAJ",64,70],
+  "Marsh of Diseases":["moon","SAJ",32,77], "Tycho":["moon","SAJ",52,79],
 };
 const LANDING_SITES = ["Sea of Crisis","Bay of Dew","Tycho"];
 const LINKS = [
+ // --- Earth, transcribed from the official board schematic -------------------
  ["Northwestern Oil Emirate","Nunavut"],["Northwestern Oil Emirate","Alberta"],["Northwestern Oil Emirate","Pevek"],
  ["Nunavut","Alberta"],["Nunavut","Canada"],["Nunavut","Exiled States of America"],["Exiled States of America","Republique du Quebec"],["Exiled States of America","Iceland GRC"],
  ["Alberta","Canada"],["Alberta","Continental Biospheres"],["Canada","Republique du Quebec"],["Canada","Continental Biospheres"],["Canada","American Republic"],
@@ -228,7 +247,7 @@ const LINKS = [
  ["Nuevo Timoto","Andean Nations"],["Nuevo Timoto","Amazon Desert"],["Andean Nations","Amazon Desert"],["Andean Nations","Argentina"],["Amazon Desert","Argentina"],["Amazon Desert","Saharan Empire"],
  ["Iceland GRC","New Avalon"],["Iceland GRC","Jotenheim"],["New Avalon","Jotenheim"],["New Avalon","Warsaw Republic"],["New Avalon","Andorra"],["Jotenheim","Warsaw Republic"],["Jotenheim","Ukrayina"],
  ["Warsaw Republic","Andorra"],["Warsaw Republic","Imperial Balkania"],["Warsaw Republic","Ukrayina"],["Ukrayina","Imperial Balkania"],["Ukrayina","Enclave of the Bear"],["Ukrayina","Afghanistan"],["Ukrayina","Middle East"],
- ["Andorra","Imperial Balkania"],["Andorra","Saharan Empire"],["Imperial Balkania","Middle East"],["Imperial Balkania","Egypt"],
+ ["Andorra","Imperial Balkania"],["Andorra","Saharan Empire"],["Imperial Balkania","Middle East"],["Imperial Balkania","Egypt"],["Imperial Balkania","Saharan Empire"],
  ["Saharan Empire","Egypt"],["Saharan Empire","Ministry of Djibouti"],["Saharan Empire","Zaire Military Zone"],["Egypt","Middle East"],["Egypt","Ministry of Djibouti"],
  ["Ministry of Djibouti","Zaire Military Zone"],["Ministry of Djibouti","Lesotho"],["Ministry of Djibouti","Madagascar"],["Zaire Military Zone","Lesotho"],["Lesotho","Madagascar"],
  ["Middle East","Afghanistan"],["Middle East","United Indiastan"],["Afghanistan","Enclave of the Bear"],["Afghanistan","Hong Kong"],["Afghanistan","United Indiastan"],
@@ -236,17 +255,21 @@ const LINKS = [
  ["Sakha","Pevek"],["Sakha","Alden"],["Pevek","Alden"],["Pevek","Khan Industrial State"],["Pevek","Japan"],["Alden","Khan Industrial State"],
  ["Khan Industrial State","Japan"],["Khan Industrial State","Hong Kong"],["Hong Kong","Angkhor Wat"],["Hong Kong","United Indiastan"],["United Indiastan","Angkhor Wat"],["Angkhor Wat","Java Cartel"],
  ["Java Cartel","New Guinea"],["Java Cartel","Aboriginal League"],["New Guinea","Aboriginal League"],["New Guinea","Australian Testing Ground"],["Aboriginal League","Australian Testing Ground"],
- // water lines (as printed on the board; the Pacific links wrap around the edge)
- ["Poseidon","Northwestern Oil Emirate"],["Poseidon","Hawaiian Preserve"],["Hawaiian Preserve","Mexico"],["Hawaiian Preserve","New Atlantis"],["New Atlantis","Nuevo Timoto"],
- ["Neo Tokyo","Japan"],["Neo Tokyo","Hong Kong"],["Neo Tokyo","Sung Tzu"],["Sung Tzu","Java Cartel"],["Hawaiian Preserve","Neo Tokyo"],["New Atlantis","Sung Tzu"],
- ["Western Ireland","New Avalon"],["Western Ireland","New York"],["New York","American Republic"],["New York","Nova Brasilia"],["Nova Brasilia","Nuevo Timoto"],["Nova Brasilia","Saharan Empire"],
+ // water colonies (the two Pacific links wrap around the edge of the board)
+ ["Poseidon","Continental Biospheres"],["Poseidon","Hawaiian Preserve"],["Hawaiian Preserve","New Atlantis"],["New Atlantis","Nuevo Timoto"],
+ ["Hawaiian Preserve","Neo Tokyo"],["Neo Tokyo","Japan"],["Neo Tokyo","Hong Kong"],["Neo Tokyo","Sung Tzu"],["Sung Tzu","New Guinea"],
+ ["Western Ireland","New Avalon"],["Western Ireland","New York"],["New York","American Republic"],["New York","Nova Brasilia"],["Nova Brasilia","Amazon Desert"],
  ["Neo Paulo","Amazon Desert"],["Neo Paulo","The Ivory Reef"],["The Ivory Reef","Saharan Empire"],
  ["South Ceylon","United Indiastan"],["South Ceylon","Microcorp"],["Microcorp","Madagascar"],["Microcorp","Akara"],["Akara","Aboriginal League"],
- // moon
- ["Harpalus","Bay of Dew"],["Harpalus","Sea of Rains"],["Sea of Rains","Bay of Dew"],["Sea of Rains","Ocean of Storms"],["Sea of Rains","Sea of Serenity"],["Sea of Rains","Aristotle"],
- ["Ocean of Storms","Bay of Dew"],["Ocean of Storms","Rhaeticus"],["Ocean of Storms","Byrgius"],["Aristotle","Sea of Serenity"],["Sea of Serenity","Sea of Crisis"],["Sea of Serenity","Sea of Nectar"],
- ["Sea of Serenity","Rhaeticus"],["Sea of Crisis","Sea of Nectar"],["Sea of Nectar","Rhaeticus"],["Sea of Nectar","Straight Wall"],["Rhaeticus","Sea of Clouds"],["Rhaeticus","Byrgius"],
- ["Byrgius","Sea of Clouds"],["Byrgius","Marsh of Diseases"],["Sea of Clouds","Straight Wall"],["Sea of Clouds","Marsh of Diseases"],["Sea of Clouds","Tycho"],["Straight Wall","Tycho"],["Marsh of Diseases","Tycho"],
+ // --- the Moon, from the official lunar schematic -----------------------------
+ ["Aristotle","Harpalus"],["Aristotle","Sea of Crisis"],["Aristotle","Sea of Rains"],["Aristotle","Sea of Serenity"],
+ ["Bay of Dew","Byrgius"],["Bay of Dew","Harpalus"],["Bay of Dew","Ocean of Storms"],["Bay of Dew","Sea of Rains"],
+ ["Byrgius","Marsh of Diseases"],["Byrgius","Ocean of Storms"],["Byrgius","Sea of Clouds"],["Harpalus","Sea of Rains"],
+ ["Marsh of Diseases","Sea of Clouds"],["Marsh of Diseases","Tycho"],["Ocean of Storms","Sea of Clouds"],["Ocean of Storms","Sea of Rains"],
+ ["Rhaeticus","Sea of Clouds"],["Rhaeticus","Sea of Nectar"],["Rhaeticus","Sea of Rains"],["Rhaeticus","Sea of Serenity"],["Rhaeticus","Straight Wall"],
+ ["Sea of Clouds","Sea of Rains"],["Sea of Clouds","Straight Wall"],["Sea of Clouds","Tycho"],
+ ["Sea of Crisis","Sea of Nectar"],["Sea of Crisis","Sea of Serenity"],["Sea of Nectar","Sea of Serenity"],["Sea of Nectar","Straight Wall"],
+ ["Sea of Rains","Sea of Serenity"],["Straight Wall","Tycho"],
 ];
 const MAP = {};
 for (const [n, [type, region, x, y]] of Object.entries(TDEF)) MAP[n] = { name: n, type, region, x, y, adj: [], site: LANDING_SITES.includes(n) };
@@ -310,7 +333,10 @@ const WHEN_TEXT = { before: "BEFORE FIRST INVASION", react: "OPPONENT INVADES", 
 // ============================================================================
 const RULES = { years: 5, commanderCost: 3, stationCost: 5, maxStations: 4, cardCost: 1, maxCards: 4, startEnergy: 3, devastation: 4 };
 let S = null;          // game state
-const ui = { resolve: null, mode: "idle", selected: null, hireType: null, cart: [], botDelay: 350, spectate: false, jammedNote: "" };
+const ui = { resolve: null, mode: "idle", selected: null, hireType: null, cart: [], botDelay: 350, spectate: false, view: "earth" };
+/** Brings the map holding `n` into view (only for the human commander's own actions). */
+function focusMap(n, force) { if (!force && (ui.spectate || S.cur !== 0)) return;
+  const want = MAP[n].type === "moon" ? "moon" : "earth"; if (ui.view !== want) setView(want); }
 const rnd = (n) => Math.floor(Math.random() * n);
 const die = (sides) => 1 + rnd(sides);
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -413,7 +439,13 @@ function reactivePlayable(p, c) {
 }
 
 // ---------- mutation helpers ----------
-function log(msg, cls) { const el = document.getElementById("log"); const d = document.createElement("div"); if (cls) d.className = cls; d.textContent = msg; el.appendChild(d); el.scrollTop = el.scrollHeight; }
+function log(msg, cls) {
+  const el = document.getElementById("log"), d = document.createElement("div");
+  if (cls) d.className = cls;
+  d.textContent = msg; el.appendChild(d);
+  while (el.childElementCount > 120) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
 function destroyUnits(n, k) {
   const t = T(n); let removed = Math.min(k, t.mods); t.mods -= removed;
   for (const c of CMDS) if (removed < k && t.cmd[c]) { delete t.cmd[c]; removed++; }
@@ -434,32 +466,49 @@ function checkElim(p) {
 // ============================================================================
 const $ = (id) => document.getElementById(id);
 function buildBoard() {
-  const board = $("board"), moon = $("moon");
+  const earth = $("earth-wrap"), moon = $("moon-wrap");
   for (const n of NAMES) {
     const m = MAP[n];
     const el = document.createElement("div");
     el.className = "node"; el.id = "n-" + n; el.style.left = m.x + "%"; el.style.top = m.y + "%";
     el.innerHTML = `<span class="num"></span><span class="badges"></span>`;
-    if (m.type === "moon") { el.innerHTML += `<span class="label">${n}</span>`; if (m.site) el.classList.add("site"); moon.appendChild(el); }
-    else board.appendChild(el);
+    if (m.type === "moon") { if (m.site) el.classList.add("site"); moon.appendChild(el); } else earth.appendChild(el);
     el.addEventListener("click", () => onNode(n));
     el.addEventListener("mouseenter", (e) => showTip(n, e));
     el.addEventListener("mousemove", (e) => moveTip(e));
     el.addEventListener("mouseleave", hideTip);
   }
-  const svg = $("moon-lines");
-  for (const [a, b] of LINKS) if (MAP[a].type === "moon") {
-    const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    l.setAttribute("x1", MAP[a].x + "%"); l.setAttribute("y1", MAP[a].y + "%"); l.setAttribute("x2", MAP[b].x + "%"); l.setAttribute("y2", MAP[b].y + "%");
-    svg.appendChild(l);
-  }
   const yrs = $("years"); for (let y = 1; y <= 5; y++) { const d = document.createElement("div"); d.textContent = 2205 + y; yrs.appendChild(d); }
+  $("view-earth").addEventListener("click", () => setView("earth"));
+  $("view-moon").addEventListener("click", () => setView("moon"));
 }
+/** Switches the map between the Earth board and the lunar board. */
+function setView(v) {
+  ui.view = v;
+  $("earth-layer").classList.toggle("on", v === "earth");
+  $("moon-layer").classList.toggle("on", v === "moon");
+  $("view-earth").classList.toggle("on", v === "earth");
+  $("view-moon").classList.toggle("on", v === "moon");
+  updateBadge();
+}
+/** Badges the map you are NOT looking at with the number of highlights waiting there. */
+function updateBadge() {
+  let moon = 0, earth = 0;
+  for (const set of [HL.option, HL.target, HL.fortify])
+    for (const t of set) (MAP[t].type === "moon" ? moon++ : earth++);
+  for (const [id, n, show] of [["moon-badge", moon, ui.view === "earth"], ["earth-badge", earth, ui.view === "moon"]]) {
+    const b = $(id);
+    b.textContent = n;
+    b.style.display = (show && n) ? "block" : "none";
+    b.title = n + " highlighted territories on that map";
+  }
+}
+
 function render() {
   if (!S) return;
   for (const n of NAMES) {
     const t = T(n), el = $("n-" + n);
-    el.className = "node" + (MAP[n].type === "moon" && MAP[n].site ? " site" : "");
+    el.className = "node" + (MAP[n].site ? " site" : "");
     if (t.dev) el.classList.add("dev");
     else if (t.owner >= 0) el.classList.add("p" + t.owner);
     el.querySelector(".num").textContent = t.dev || t.owner < 0 ? "" : units(n);
@@ -469,20 +518,28 @@ function render() {
     if (!t.station && st) st.remove();
   }
   applyHighlights();
+  updateBadge();
   // meta
   [...$("years").children].forEach((d, i) => { d.className = i + 1 === S.year ? "active" : i + 1 < S.year ? "done" : ""; });
   $("year").textContent = S.year ? `${S.year} / 5  (${2205 + S.year} A.D.)` : "-";
   $("turn").textContent = S.cur >= 0 ? P(S.cur).name : "-";
   $("phase").textContent = S.phase;
-  // players
+  // players (rebuilt only when something they show has changed)
+  const psig = S.players.map(p => [p.energy, p.pool, p.hand.length, owned(p.id).length, score(p.id), stations(p.id), p.elim, CMDS.filter(c => hasCmd(p.id, c)).join("")].join(",")).join("|") + "#" + S.cur;
+  if (psig !== ui.psig) { ui.psig = psig;
   $("players").innerHTML = S.players.map(p => `<div class="player ${S.cur === p.id ? "active" : ""}" style="border-color:${p.color}">
     <div class="name" style="color:${p.color}">${p.name}${p.bot ? (p.neutral ? " · NEUTRAL" : " · BOT") : " · YOU"}${p.elim ? " · ELIMINATED" : ""}</div>
-    <div class="stat">${p.neutral ? `TERRITORIES ${owned(p.id).length}` : `ENERGY ${p.bot && !ui.spectate && !p.neutral ? "?" : p.energy} · MODS ${p.pool}<br>TERR ${owned(p.id).length} · SCORE ${score(p.id)}<br>STATIONS ${stations(p.id)} · CARDS ${p.hand.length}<br>CMD ${CMDS.filter(c => hasCmd(p.id, c)).map(c => CMD_INITIAL[c]).join(" ") || "-"}`}</div></div>`).join("");
-  $("regions").innerHTML = Object.entries(REGIONS).map(([k, r]) => { const o = [0, 1, 2].find(p => controls(p, k)); return `<div><span>${r.name} +${r.bonus}</span><span style="color:${o === undefined ? "#556" : P(o).color}">${o === undefined ? "-" : P(o).name}</span></div>`; }).join("");
+    <div class="stat">${p.neutral ? `TERRITORIES ${owned(p.id).length}` : `ENERGY ${p.bot && !ui.spectate && !p.neutral ? "?" : p.energy} · MODS ${p.pool}<br>TERR ${owned(p.id).length} · SCORE ${score(p.id)}<br>STATIONS ${stations(p.id)} · CARDS ${p.hand.length}<br>CMD ${CMDS.filter(c => hasCmd(p.id, c)).map(c => CMD_INITIAL[c]).join(" ") || "-"}`}</div></div>`).join(""); }
+  const rsig = Object.keys(REGIONS).map(k => [0, 1, 2].find(p => controls(p, k)) ?? -1).join(",");
+  if (rsig !== ui.rsig) { ui.rsig = rsig;
+  $("regions").innerHTML = Object.entries(REGIONS).map(([k, r]) => { const o = [0, 1, 2].find(p => controls(p, k)); return `<div><span>${r.name.replace("North America","N. AMERICA").replace("South America","S. AMERICA").toUpperCase()} +${r.bonus}</span><span style="color:${o === undefined ? "#556" : P(o).color}">${o === undefined ? "-" : P(o).name}</span></div>`; }).join(""); }
   renderHand();
 }
 function renderHand() {
   const me = ui.spectate ? -1 : 0, el = $("hand");
+  const hsig = me < 0 ? "spectate" : [P(me).hand.join(","), ui.mode, S.cur, S.phase, P(me).energy, P(me).invaded, P(me).pool].join("|");
+  if (hsig === ui.hsig) return;
+  ui.hsig = hsig;
   if (me < 0) { el.innerHTML = `<div style="font-size:10px;color:var(--dim)">Spectating - hands are hidden.</div>`; return; }
   const p = P(me);
   const reactive = ui.mode === "react";
@@ -531,10 +588,17 @@ function showTip(n, e) {
 function moveTip(e) { const tip = $("tooltip"); tip.style.left = Math.min(e.clientX + 16, innerWidth - 260) + "px"; tip.style.top = Math.min(e.clientY + 16, innerHeight - 100) + "px"; }
 function hideTip() { $("tooltip").style.display = "none"; }
 const fx = {
-  pos(n) { const m = MAP[n]; if (m.type !== "moon") return { x: m.x, y: m.y }; return { x: 20 + m.x * 0.30, y: 73 + m.y * 0.25 }; },
-  shock(n, color) { const p = fx.pos(n), el = document.createElement("div"); el.className = "shock"; el.style.left = p.x + "%"; el.style.top = p.y + "%"; el.style.borderColor = color || "#5ce1ff"; $("board").appendChild(el); setTimeout(() => el.remove(), 750); },
+  layer(n) { return MAP[n].type === "moon" ? $("moon-wrap") : $("earth-wrap"); },
+  pos(n) { return { x: MAP[n].x, y: MAP[n].y }; },
+  visible(n) { return (MAP[n].type === "moon") === (ui.view === "moon"); },
+  shock(n, color) { if (!fx.visible(n)) return; const p = fx.pos(n), el = document.createElement("div"); el.className = "shock"; el.style.left = p.x + "%"; el.style.top = p.y + "%"; el.style.borderColor = color || "#5ce1ff"; fx.layer(n).appendChild(el); setTimeout(() => el.remove(), 750); },
   flash(n) { const el = $("n-" + n); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); },
-  async orb(from, to, color) { const a = fx.pos(from), b = fx.pos(to), el = document.createElement("div"); el.className = "orb"; el.style.left = a.x + "%"; el.style.top = a.y + "%"; if (color) el.style.boxShadow = `0 0 12px 4px ${color}`; $("board").appendChild(el); await sleep(30); el.style.left = b.x + "%"; el.style.top = b.y + "%"; await sleep(620); el.remove(); },
+  async orb(from, to, color) {
+    if (MAP[from].type === "moon" !== (MAP[to].type === "moon")) { fx.shock(to, color); return; }   // Earth <-> Moon: no path to draw
+    if (!fx.visible(from)) return;
+    const a = fx.pos(from), b = fx.pos(to), el = document.createElement("div"); el.className = "orb";
+    el.style.left = a.x + "%"; el.style.top = a.y + "%"; if (color) el.style.boxShadow = `0 0 12px 4px ${color}`;
+    fx.layer(from).appendChild(el); await sleep(30); el.style.left = b.x + "%"; el.style.top = b.y + "%"; await sleep(620); el.remove(); },
   shake() { const b = $("board"); b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); },
 };
 
@@ -763,7 +827,7 @@ async function humanFortify(p) {
 async function declareInvasion(p, from, to) {
   const inv = { attacker: p, from, to, defender: T(to).owner, contested: units(to) > 0, attackedOnce: false, captured: false, lastDice: 0, mustMove: [] };
   S.inv = inv; P(p).invaded = true; P(p).invasions++;
-  HL.attack = from; HL.defend = to; render();
+  HL.attack = from; HL.defend = to; focusMap(to); render();
   log(`${P(p).name} invades ${to} from ${from}`);
   if (inv.contested) {
     // reactive cards: defender first, then the other player
