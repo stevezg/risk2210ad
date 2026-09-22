@@ -75,8 +75,8 @@ body { display: grid; grid-template-columns: 250px 1fr 256px; grid-template-rows
 .title small { display: block; font-size: 11px; color: var(--cyan); letter-spacing: 3px; }
 .kv { display: flex; justify-content: space-between; font-size: 11px; margin: 3px 0; }
 .kv span:first-child { color: var(--dim); }
-.years { display: flex; gap: 4px; margin: 6px 0; }
-.years div { flex: 1; text-align: center; font-size: 10px; padding: 3px 0; border-radius: 4px; background: rgba(30,60,90,.7); color: #90a8c0; }
+.years { display: flex; gap: 4px; margin: 6px 0; flex-wrap: wrap; }
+.years div { flex: 1 1 30px; min-width: 30px; text-align: center; font-size: 10px; padding: 3px 0; border-radius: 4px; background: rgba(30,60,90,.7); color: #90a8c0; }
 .years div.active { background: var(--cyan); color: #04101a; font-weight: bold; }
 .years div.done { background: rgba(60,120,160,.6); color: #dde; }
 .player { padding: 6px; border-radius: 6px; margin-bottom: 6px; font-size: 11px; border-left: 4px solid; }
@@ -196,8 +196,9 @@ button.small { padding: 3px 6px; font-size: 10px; }
   <div class="card">
     <img class="cover" src="cover.jpg" alt="Risk 2210 A.D.">
     <p>Five years. Earth, the oceans and the Moon. You command the <b style="color:var(--red)">RED</b> forces against the <b style="color:var(--blue)">BLUE</b> machine intelligence; a neutral <b style="color:var(--gray)">GRAY</b> army holds the ground between you.</p>
+    <div class="row" style="margin-bottom:4px"><span style="font-size:10px;color:var(--dim);letter-spacing:2px;align-self:center;margin-right:6px">YEARS</span><div id="year-picker" class="row"></div></div>
     <div class="row"><button id="btn-start" class="primary">LAUNCH CAMPAIGN</button><button id="btn-spectate">SPECTATE BOT VS BOT</button></div>
-    <p>Bidding for turn order · recruit MODs, hire commanders, build Space Stations, buy command cards · invade with d6/d8 combat · fortify. Rules per the 2001 gameplay manual and FAQ.</p>
+    <p>Bidding for turn order · recruit MODs, hire commanders, build Space Stations, buy command cards · invade with d6/d8 combat · fortify. Rules per the 2001 gameplay manual and FAQ. At the end of the selected number of years you can keep playing or stop for final scoring.</p>
   </div>
 </div>
 
@@ -257,7 +258,7 @@ const LINKS = [
  ["Java Cartel","New Guinea"],["Java Cartel","Aboriginal League"],["New Guinea","Aboriginal League"],["New Guinea","Australian Testing Ground"],["Aboriginal League","Australian Testing Ground"],
  // water colonies (the two Pacific links wrap around the edge of the board)
  ["Poseidon","Continental Biospheres"],["Poseidon","Hawaiian Preserve"],["Hawaiian Preserve","New Atlantis"],["New Atlantis","Nuevo Timoto"],
- ["Hawaiian Preserve","Neo Tokyo"],["Neo Tokyo","Japan"],["Neo Tokyo","Hong Kong"],["Neo Tokyo","Sung Tzu"],["Sung Tzu","New Guinea"],
+ ["New Atlantis","Neo Tokyo"],["Neo Tokyo","Japan"],["Neo Tokyo","Hong Kong"],["Neo Tokyo","Sung Tzu"],["Sung Tzu","New Guinea"],
  ["Western Ireland","New Avalon"],["Western Ireland","New York"],["New York","American Republic"],["New York","Nova Brasilia"],["Nova Brasilia","Amazon Desert"],
  ["Neo Paulo","Amazon Desert"],["Neo Paulo","The Ivory Reef"],["The Ivory Reef","Saharan Empire"],
  ["South Ceylon","United Indiastan"],["South Ceylon","Microcorp"],["Microcorp","Madagascar"],["Microcorp","Akara"],["Akara","Aboriginal League"],
@@ -331,9 +332,9 @@ const WHEN_TEXT = { before: "BEFORE FIRST INVASION", react: "OPPONENT INVADES", 
 // ============================================================================
 // STATE
 // ============================================================================
-const RULES = { years: 5, commanderCost: 3, stationCost: 5, maxStations: 4, cardCost: 1, maxCards: 4, startEnergy: 3, devastation: 4 };
+const RULES = { defaultYears: 5, commanderCost: 3, stationCost: 5, maxStations: 4, cardCost: 1, maxCards: 4, startEnergy: 3, devastation: 4 };
 let S = null;          // game state
-const ui = { resolve: null, mode: "idle", selected: null, hireType: null, cart: [], botDelay: 350, spectate: false, view: "earth" };
+const ui = { resolve: null, mode: "idle", selected: null, hireType: null, cart: [], botDelay: 350, spectate: false, view: "earth", yearLimit: 5 };
 /** Brings the map holding `n` into view (only for the human commander's own actions). */
 function focusMap(n, force) { if (!force && (ui.spectate || S.cur !== 0)) return;
   const want = MAP[n].type === "moon" ? "moon" : "earth"; if (ui.view !== want) setView(want); }
@@ -345,7 +346,7 @@ const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(
 function newGame(spectate) {
   ui.spectate = spectate;
   S = {
-    year: 0, phase: "SETUP", cur: -1, order: [], winner: -1,
+    year: 0, yearLimit: ui.yearLimit || RULES.defaultYears, phase: "SETUP", cur: -1, order: [], winner: -1,
     players: [
       { id: 0, name: "RED", color: "var(--red)", bot: spectate, energy: RULES.startEnergy, pool: 0, hand: [], elim: false, neutral: false },
       { id: 1, name: "BLUE", color: "var(--blue)", bot: true, energy: RULES.startEnergy, pool: 0, hand: [], elim: false, neutral: false },
@@ -478,7 +479,7 @@ function buildBoard() {
     el.addEventListener("mousemove", (e) => moveTip(e));
     el.addEventListener("mouseleave", hideTip);
   }
-  const yrs = $("years"); for (let y = 1; y <= 5; y++) { const d = document.createElement("div"); d.textContent = 2205 + y; yrs.appendChild(d); }
+  ensureYearTrack();
   $("view-earth").addEventListener("click", () => setView("earth"));
   $("view-moon").addEventListener("click", () => setView("moon"));
 }
@@ -642,12 +643,39 @@ async function choosePlayer(p, options, text) {
 // ============================================================================
 async function runGame() {
   await setup();
-  for (let y = 1; y <= RULES.years; y++) {
-    S.year = y; log(`=== Year ${y} (${2205 + y} A.D.) ===`, "y");
+  let y = 0;
+  while (true) {
+    y++;
+    S.year = y; ensureYearTrack(); log(`=== Year ${y} (${2205 + y} A.D.) ===`, "y");
     await bidding();
     for (const p of S.order) if (active(p)) await takeTurn(p);
+    if (y >= S.yearLimit) {
+      const more = await checkpoint();
+      if (!more) break;
+      S.yearLimit = y + more;
+    }
   }
   finalScoring();
+}
+
+/** Grows the year-track HUD to cover at least S.year / S.yearLimit boxes (games can run past the original limit). Safe to call before a game exists. */
+function ensureYearTrack() {
+  const yrs = $("years"), want = S ? Math.max(S.year, S.yearLimit, 5) : (ui.yearLimit || 5);
+  while (yrs.children.length < want) { const d = document.createElement("div"); d.textContent = 2205 + yrs.children.length + 1; yrs.appendChild(d); }
+}
+
+/** End-of-limit checkpoint: show the interim standings and ask whether to keep playing. Returns 0 to stop, or the number of extra years to add. */
+async function checkpoint() {
+  const standings = [0, 1].map(p => `${P(p).name}: ${score(p)} pts  (${owned(p).length} territories, ${p === 0 || ui.spectate ? P(p).energy + " energy" : "? energy"})`).join("\n");
+  log(`=== Year ${S.year} complete ===`, "y");
+  const choice = await modal(`YEAR ${S.year} COMPLETE`, `Current standings:\n${standings}\n\nKeep playing, or stop here for final scoring?`, [
+    { label: "Stop — final scoring", value: 0, cls: "primary" },
+    { label: "Play 1 more year", value: 1 },
+    { label: "Play 3 more years", value: 3 },
+    { label: "Play 5 more years", value: 5 },
+  ]);
+  if (choice) log(`Commanders continue the war for ${choice} more year(s).`, "y");
+  return choice;
 }
 
 async function setup() {
@@ -1050,8 +1078,18 @@ function finalScoring() {
 // BOOT
 // ============================================================================
 buildBoard();
+function buildYearPicker() {
+  const box = $("year-picker"); box.innerHTML = "";
+  for (const n of [3, 5, 7, 10]) {
+    const b = document.createElement("button"); b.className = "small" + (n === ui.yearLimit ? " toggled" : "");
+    b.textContent = n; b.addEventListener("click", () => { ui.yearLimit = n; buildYearPicker(); });
+    box.appendChild(b);
+  }
+}
+buildYearPicker();
 function start(spectate) {
   newGame(spectate); $("menu").style.display = "none";
+  ensureYearTrack();
   const sp = $("actions2"); sp.innerHTML = "";
   const b = document.createElement("button"); b.textContent = "Bot speed: normal"; b.className = "small";
   b.addEventListener("click", () => { ui.botDelay = ui.botDelay > 100 ? 40 : 350; b.textContent = ui.botDelay > 100 ? "Bot speed: normal" : "Bot speed: fast"; }); sp.appendChild(b);
