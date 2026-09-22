@@ -258,7 +258,7 @@ const LINKS = [
  ["Java Cartel","New Guinea"],["Java Cartel","Aboriginal League"],["New Guinea","Aboriginal League"],["New Guinea","Australian Testing Ground"],["Aboriginal League","Australian Testing Ground"],
  // water colonies (the two Pacific links wrap around the edge of the board)
  ["Poseidon","Continental Biospheres"],["Poseidon","Hawaiian Preserve"],["Hawaiian Preserve","New Atlantis"],["New Atlantis","Nuevo Timoto"],
- ["New Atlantis","Neo Tokyo"],["Neo Tokyo","Japan"],["Neo Tokyo","Hong Kong"],["Neo Tokyo","Sung Tzu"],["Sung Tzu","New Guinea"],
+ ["New Atlantis","Neo Tokyo"],["Neo Tokyo","Japan"],["Neo Tokyo","Hong Kong"],["Neo Tokyo","Sung Tzu"],["Sung Tzu","Java Cartel"],
  ["Western Ireland","New Avalon"],["Western Ireland","New York"],["New York","American Republic"],["New York","Nova Brasilia"],["Nova Brasilia","Amazon Desert"],
  ["Neo Paulo","Amazon Desert"],["Neo Paulo","The Ivory Reef"],["The Ivory Reef","Saharan Empire"],
  ["South Ceylon","United Indiastan"],["South Ceylon","Microcorp"],["Microcorp","Madagascar"],["Microcorp","Akara"],["Akara","Aboriginal League"],
@@ -634,6 +634,7 @@ async function choose(p, options, text, botPick) {
   while (true) { const a = await userInput(); if (a.type === "terr" && options.includes(a.name)) { ui.mode = prevMode; clearHL(); render(); return a.name; } }
 }
 async function choosePlayer(p, options, text) {
+  if (!options.length) return null;
   if (P(p).bot) return options.reduce((b, q) => P(q).hand.length > P(b).hand.length ? q : b, options[0]);
   return modal("CHOOSE A PLAYER", text, options.map(q => ({ label: P(q).name, value: q })));
 }
@@ -747,7 +748,7 @@ async function bidding() {
   for (const p of ps) {
     let m;
     if (P(p).bot) m = markers[0];
-    else m = await modal("CHOOSE TURN ORDER", `You won the choice (bid ${bids[p]}). Which turn marker do you take?`, markers.map(k => ({ label: "#" + (k + 1), value: k })));
+    else m = await modal("CHOOSE TURN ORDER", `You won the choice (bid ${bids[p]}). Which turn marker do you take? Marker #1 acts first this year, #2 second — whoever you leave for your opponent, they get.`, markers.map(k => ({ label: "#" + (k + 1) + (k === 0 ? " — go first" : " — go second"), value: k })));
     order[m] = p; markers = markers.filter(k => k !== m);
     log(`${P(p).name} takes turn marker #${m + 1}`);
   }
@@ -940,9 +941,10 @@ async function attack(p, nDice) {
 function moveIn(p, k) {
   const inv = S.inv, f = T(inv.from), d = T(inv.to);
   const maxMove = units(inv.from) - 1; k = Math.max(1, Math.min(k, maxMove));
-  let moved = 0; for (const c of inv.mustMove) if (f.cmd[c]) { delete f.cmd[c]; d.cmd[c] = true; moved++; }
-  k = Math.max(k, moved); const m = Math.min(k - moved, f.mods); f.mods -= m; d.mods += m; moved += m;
-  for (const c of CMDS) if (moved < k && f.cmd[c]) { delete f.cmd[c]; d.cmd[c] = true; moved++; }
+  let moved = 0;
+  for (const c of inv.mustMove) if (f.cmd[c]) { delete f.cmd[c]; d.cmd[c] = true; moved++; }          // commanders whose d8 must advance (rulebook)
+  for (const c of CMDS) if (moved < k && f.cmd[c]) { delete f.cmd[c]; d.cmd[c] = true; moved++; }       // commanders follow the invading force by preference...
+  const m = Math.min(k - moved, f.mods); f.mods -= m; d.mods += m; moved += m;                          // ...MODs are what stays behind when only one unit can remain
   d.owner = p; log(`  ${P(p).name} moves ${moved} unit(s) into ${inv.to}`); fx.orb(inv.from, inv.to, p === 0 ? "#ff4d5a" : "#3d9bff");
   if (P(p).scout === inv.to) { d.mods += 5; P(p).scout = null; log("  scout forces arrive: +5 MODs"); }
   S.inv = null; HL.attack = HL.defend = null; $("combat").classList.remove("show"); render();
