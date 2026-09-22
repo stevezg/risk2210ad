@@ -76,7 +76,7 @@ body { display: grid; grid-template-columns: 250px 1fr 256px; grid-template-rows
 .kv { display: flex; justify-content: space-between; font-size: 11px; margin: 3px 0; }
 .kv span:first-child { color: var(--dim); }
 .years { display: flex; gap: 4px; margin: 6px 0; flex-wrap: wrap; }
-.years div { flex: 1 1 30px; min-width: 30px; text-align: center; font-size: 10px; padding: 3px 0; border-radius: 4px; background: rgba(30,60,90,.7); color: #90a8c0; }
+.years div { flex: 1 1 22px; min-width: 22px; text-align: center; font-size: 10px; padding: 3px 0; border-radius: 4px; background: rgba(30,60,90,.7); color: #90a8c0; white-space: nowrap; }
 .years div.active { background: var(--cyan); color: #04101a; font-weight: bold; }
 .years div.done { background: rgba(60,120,160,.6); color: #dde; }
 .player { padding: 6px; border-radius: 6px; margin-bottom: 6px; font-size: 11px; border-left: 4px solid; }
@@ -346,7 +346,7 @@ const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(
 function newGame(spectate) {
   ui.spectate = spectate;
   S = {
-    year: 0, yearLimit: ui.yearLimit || RULES.defaultYears, phase: "SETUP", cur: -1, order: [], winner: -1,
+    year: 0, yearLimit: ui.yearLimit || RULES.defaultYears, phase: "SETUP", cur: -1, order: [], winner: -1, conquest: false,
     players: [
       { id: 0, name: "RED", color: "var(--red)", bot: spectate, energy: RULES.startEnergy, pool: 0, hand: [], elim: false, neutral: false },
       { id: 1, name: "BLUE", color: "var(--blue)", bot: true, energy: RULES.startEnergy, pool: 0, hand: [], elim: false, neutral: false },
@@ -648,7 +648,11 @@ async function runGame() {
     y++;
     S.year = y; ensureYearTrack(); log(`=== Year ${y} (${2205 + y} A.D.) ===`, "y");
     await bidding();
-    for (const p of S.order) if (active(p)) await takeTurn(p);
+    for (const p of S.order) {
+      if (!active(p)) continue;
+      await takeTurn(p);
+      if (conquestWinner() >= 0) { S.conquest = true; finalScoring(); return; }
+    }
     if (y >= S.yearLimit) {
       const more = await checkpoint();
       if (!more) break;
@@ -658,10 +662,16 @@ async function runGame() {
   finalScoring();
 }
 
+/** Returns the surviving player id once the other real commander has no territories left, or -1 if the war is still on. */
+function conquestWinner() {
+  const standing = [0, 1].filter(active);
+  return standing.length === 1 ? standing[0] : -1;
+}
+
 /** Grows the year-track HUD to cover at least S.year / S.yearLimit boxes (games can run past the original limit). Safe to call before a game exists. */
 function ensureYearTrack() {
   const yrs = $("years"), want = S ? Math.max(S.year, S.yearLimit, 5) : (ui.yearLimit || 5);
-  while (yrs.children.length < want) { const d = document.createElement("div"); d.textContent = 2205 + yrs.children.length + 1; yrs.appendChild(d); }
+  while (yrs.children.length < want) { const d = document.createElement("div"); d.textContent = "'" + String(2205 + yrs.children.length + 1).slice(-2); yrs.appendChild(d); }
 }
 
 /** End-of-limit checkpoint: show the interim standings and ask whether to keep playing. Returns 0 to stop, or the number of extra years to add. */
@@ -1058,7 +1068,8 @@ async function botTurn(p) {
 
 // ---------- scoring ----------
 function finalScoring() {
-  S.phase = "GAME OVER"; log("=== Final scoring ===", "y");
+  S.phase = "GAME OVER";
+  log(S.conquest ? "=== Total conquest ===" : "=== Final scoring ===", "y");
   const res = [];
   for (const p of [0, 1]) {
     const pl = P(p); let inf = 0;
@@ -1069,8 +1080,12 @@ function finalScoring() {
   }
   res.sort((a, b) => P(b).final - P(a).final || P(b).energy - P(a).energy || countUnits(b) - countUnits(a));
   S.winner = res[0]; render();
-  log(`${P(S.winner).name} is elected the new world leader!`, "y");
-  setPrompt("GAME OVER", `${P(S.winner).name} is elected world leader.\n${res.map(p => `${P(p).name}: ${P(p).final}`).join("   ")}`, [{ id: "menu", label: "Back to menu", cls: "primary" }]);
+  const title = S.conquest ? `${P(S.winner).name} has conquered the world!` : `${P(S.winner).name} is elected the new world leader!`;
+  log(title, "y");
+  const body = S.conquest
+    ? `${P(S.winner).name} has eliminated ${P(1 - S.winner).name} in Year ${S.year} \u2014 no opposition remains.\n${res.map(p => `${P(p).name}: ${P(p).final}`).join("   ")}`
+    : `${P(S.winner).name} is elected world leader.\n${res.map(p => `${P(p).name}: ${P(p).final}`).join("   ")}`;
+  setPrompt("GAME OVER", body, [{ id: "menu", label: "Back to menu", cls: "primary" }]);
   userInput().then(() => location.reload());
 }
 
