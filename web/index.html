@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Risk 2210 A.D.</title>
+<style>
+@font-face { font-family: "Gunship"; src: url("gunship.ttf") format("truetype"); }
+:root {
+  --cyan: #5ce1ff; --amber: #ffbe4d; --red: #ff4d5a; --blue: #3d9bff; --gray: #9aa4b2;
+  --panel: rgba(6, 12, 26, 0.86); --line: rgba(92, 225, 255, 0.45); --text: #d8e8ff; --dim: #8aa0b8;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; background: #05080f; color: var(--text); font-family: "Gunship", "Orbitron", "Segoe UI", sans-serif; letter-spacing: .5px; overflow: hidden; }
+body { display: grid; grid-template-columns: 250px 1fr 250px; grid-template-rows: 1fr auto; gap: 8px; padding: 8px; height: 100vh; }
+
+/* ---------- board ---------- */
+#stage { grid-column: 2; grid-row: 1; position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; }
+#board { position: relative; aspect-ratio: 2400 / 1641; max-width: 100%; max-height: 100%; width: 100%; box-shadow: 0 0 40px rgba(92,225,255,.25), 0 0 0 1px var(--line); border-radius: 6px; overflow: hidden; }
+#board img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+.node {
+  position: absolute; transform: translate(-50%, -50%); width: 4.4%; aspect-ratio: 1; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 1.05vw; font-weight: bold; color: #fff; cursor: pointer;
+  background: rgba(20, 30, 60, .55); border: 2px solid rgba(255,255,255,.55); text-shadow: 0 0 4px #000, 0 0 2px #000;
+  transition: box-shadow .15s, transform .15s, background .35s, border-color .35s; z-index: 2;
+}
+.node:hover { transform: translate(-50%, -50%) scale(1.15); z-index: 5; }
+.node.p0 { background: rgba(255, 60, 80, .78); border-color: #ff8090; }
+.node.p1 { background: rgba(50, 130, 255, .78); border-color: #8ac0ff; }
+.node.p2 { background: rgba(140, 150, 165, .75); border-color: #d0d8e0; }
+.node.dev { background: rgba(30, 5, 5, .85); border-color: #ff3030; color: #ff5050; }
+.node.dev::after { content: "✕"; font-size: 1.3vw; }
+.node .badges { position: absolute; top: -0.9vw; left: 50%; transform: translateX(-50%); font-size: .6vw; color: #ffe9a0; white-space: nowrap; text-shadow: 0 0 3px #000; }
+.node .station { position: absolute; right: -0.35vw; top: -0.35vw; width: .8vw; height: .8vw; background: #fff; border: 1px solid #000; }
+.node.hl-option { box-shadow: 0 0 0 3px #ffd54d, 0 0 18px 6px rgba(255, 213, 77, .8); animation: pulse 1s infinite alternate; }
+.node.hl-target { box-shadow: 0 0 0 3px #ff8a3d, 0 0 18px 6px rgba(255, 138, 61, .85); animation: pulse .7s infinite alternate; }
+.node.hl-fortify { box-shadow: 0 0 0 3px #5ce1ff, 0 0 18px 6px rgba(92, 225, 255, .8); animation: pulse 1s infinite alternate; }
+.node.hl-selected { box-shadow: 0 0 0 3px #fff, 0 0 22px 8px rgba(255,255,255,.7); z-index: 6; }
+.node.hl-attack { box-shadow: 0 0 0 3px #ff8a3d, 0 0 22px 8px rgba(255,138,61,.9); }
+.node.hl-defend { box-shadow: 0 0 0 3px #ff3040, 0 0 22px 8px rgba(255,48,64,.9); }
+.node.flash { animation: flash .5s; }
+@keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+@keyframes flash { 0% { background: #fff; } 100% {} }
+.shock { position: absolute; transform: translate(-50%, -50%); width: 4%; aspect-ratio: 1; border-radius: 50%; border: 3px solid var(--cyan); pointer-events: none; animation: shock .7s ease-out forwards; z-index: 4; }
+@keyframes shock { from { transform: translate(-50%,-50%) scale(.4); opacity: 1; } to { transform: translate(-50%,-50%) scale(3.2); opacity: 0; } }
+.orb { position: absolute; width: 1.2%; aspect-ratio: 1; border-radius: 50%; background: #fff; box-shadow: 0 0 12px 4px var(--cyan); pointer-events: none; transform: translate(-50%,-50%); z-index: 7; transition: left .6s ease-in-out, top .6s ease-in-out; }
+
+/* moon inset over the ocean / logo area */
+#moon { position: absolute; left: 20%; top: 73%; width: 30%; height: 25%; background: rgba(10, 12, 28, .8); border: 1px solid rgba(160,160,220,.5); border-radius: 8px; z-index: 3; }
+#moon .title { position: absolute; left: 6px; top: 3px; font-size: .8vw; color: #b0b0e0; letter-spacing: 2px; }
+#moon .node { width: 10%; font-size: .9vw; background: rgba(40,40,70,.7); }
+#moon .node .label { display: none; }
+#moon .node.site { border-style: dashed; border-color: #ffd54d; }
+#moon .legend { position: absolute; right: 6px; bottom: 2px; font-size: .55vw; color: #9090c0; }
+#moon svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#moon svg line { stroke: rgba(160,160,220,.5); stroke-width: 1.5; }
+
+/* ---------- panels ---------- */
+.col { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
+.card { flex-shrink: 0; }
+#left { grid-column: 1; grid-row: 1 / span 2; }
+#right { grid-column: 3; grid-row: 1 / span 2; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: 0 0 18px rgba(92,225,255,.12); }
+.card h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 3px; color: var(--cyan); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.title { font-size: 17px; color: var(--red); letter-spacing: 4px; text-shadow: 0 0 10px rgba(255,77,90,.7); }
+.title small { display: block; font-size: 11px; color: var(--cyan); letter-spacing: 3px; }
+.kv { display: flex; justify-content: space-between; font-size: 11px; margin: 3px 0; }
+.kv span:first-child { color: var(--dim); }
+.years { display: flex; gap: 4px; margin: 6px 0; }
+.years div { flex: 1; text-align: center; font-size: 10px; padding: 3px 0; border-radius: 4px; background: rgba(30,60,90,.7); color: #90a8c0; }
+.years div.active { background: var(--cyan); color: #04101a; font-weight: bold; }
+.years div.done { background: rgba(60,120,160,.6); color: #dde; }
+.player { padding: 6px; border-radius: 6px; margin-bottom: 6px; font-size: 11px; border-left: 4px solid; }
+.player.active { background: rgba(92,225,255,.12); }
+.player .name { font-weight: bold; letter-spacing: 2px; margin-bottom: 3px; }
+.player .stat { color: var(--dim); font-size: 10px; line-height: 1.5; }
+#regions { font-size: 9px; line-height: 1.5; display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; }
+#regions div { display: flex; justify-content: space-between; }
+#log { flex: 1; min-height: 60px; overflow-y: auto; font-size: 10px; line-height: 1.45; color: #b8c8dc; }
+#log div:last-child { color: #fff; }
+#log .y { color: var(--amber); }
+
+#prompt-title { color: var(--amber); font-size: 14px; letter-spacing: 2px; }
+#prompt-text { font-size: 11px; line-height: 1.5; margin: 6px 0; min-height: 30px; }
+#status { color: #ff8a80; font-size: 11px; min-height: 14px; }
+#actions { display: flex; flex-wrap: wrap; gap: 5px; }
+button { font-family: inherit; font-size: 11px; letter-spacing: 1px; color: #dff4ff; background: rgba(20,60,100,.9); border: 1px solid rgba(92,225,255,.6); border-radius: 6px; padding: 6px 9px; cursor: pointer; }
+button:hover { background: rgba(40,110,170,.95); }
+button:disabled { opacity: .35; cursor: default; }
+button.primary { background: rgba(30,120,80,.9); border-color: rgba(120,255,180,.7); }
+button.danger { background: rgba(120,30,40,.9); border-color: rgba(255,120,120,.7); }
+button.toggled { background: rgba(160,110,20,.95); border-color: #ffc850; }
+button.small { padding: 3px 6px; font-size: 10px; }
+
+#hand { flex: 1; overflow-y: auto; min-height: 60px; }
+#prompt-text { max-height: 120px; overflow-y: auto; }
+.ccard { background: rgba(20,40,70,.9); border: 1px solid rgba(120,150,200,.5); border-radius: 6px; padding: 6px 8px; margin-bottom: 5px; font-size: 10px; position: relative; }
+.ccard.playable { border-color: var(--cyan); background: rgba(30,70,110,.95); cursor: pointer; }
+.ccard.playable:hover { background: rgba(50,110,170,1); }
+.ccard .cn { font-weight: bold; font-size: 11px; color: #eaf4ff; }
+.ccard .cm { color: var(--amber); font-size: 9px; letter-spacing: 1px; }
+.ccard .icon { display: inline-block; width: 14px; height: 14px; border-radius: 7px; text-align: center; line-height: 14px; font-size: 9px; color: #04101a; font-weight: bold; margin-right: 5px; }
+.deck-Land { background: #78dc78; } .deck-Diplomat { background: #f0c85a; } .deck-Naval { background: #5aaaff; } .deck-Nuclear { background: #ff6e5a; } .deck-Space { background: #c896ff; }
+.ccard .tip { display: none; position: absolute; right: 102%; top: 0; width: 220px; background: rgba(4,10,20,.97); border: 1px solid var(--cyan); border-radius: 8px; padding: 8px; z-index: 20; font-size: 10px; line-height: 1.5; color: var(--text); }
+.ccard:hover .tip { display: block; }
+.ccard .tip b { color: var(--cyan); }
+
+/* ---------- modal ---------- */
+#modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 50; }
+#modal-bg.show { display: flex; }
+#modal { width: 460px; max-width: 90vw; }
+#modal h2 { margin: 0 0 8px; font-size: 16px; color: var(--amber); letter-spacing: 3px; }
+#modal .body { font-size: 12px; line-height: 1.6; margin-bottom: 12px; white-space: pre-line; }
+#modal .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+#modal input { font-family: monospace; font-size: 14px; width: 80px; background: #0a1628; color: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; }
+
+/* ---------- combat panel ---------- */
+#combat { position: absolute; left: 50%; top: 4%; transform: translateX(-50%); display: none; z-index: 10; min-width: 340px; text-align: center; }
+#combat.show { display: block; }
+#combat .vs { font-size: 12px; margin-bottom: 6px; }
+.dice { display: flex; justify-content: center; gap: 6px; margin: 4px 0; }
+.die { width: 34px; height: 34px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; animation: roll .45s ease-out; }
+.die.a { background: #ff4d5a; color: #fff; } .die.d { background: #eef; color: #123; } .die.d8 { background: #5ce1ff; color: #04101a; }
+.die.lost { outline: 3px solid #000; opacity: .6; }
+@keyframes roll { 0% { transform: rotate(-200deg) scale(.4); opacity: 0; } 60% { transform: rotate(20deg) scale(1.15); } 100% { transform: none; opacity: 1; } }
+#combat .result { font-size: 11px; color: var(--amber); margin-top: 4px; }
+.shake { animation: shake .3s; }
+@keyframes shake { 0%,100% { transform: translate(0,0);} 25% { transform: translate(-6px,3px);} 50% { transform: translate(5px,-4px);} 75% { transform: translate(-3px,-2px);} }
+
+#tooltip { position: fixed; display: none; background: rgba(4,10,20,.96); border: 1px solid var(--cyan); border-radius: 8px; padding: 8px 10px; font-size: 10px; line-height: 1.5; pointer-events: none; z-index: 40; max-width: 240px; }
+#tooltip b { color: var(--cyan); font-size: 11px; }
+#menu { position: fixed; inset: 0; background: radial-gradient(ellipse at center, #0b1a33 0%, #05080f 70%); display: flex; align-items: center; justify-content: center; z-index: 60; }
+#menu .card { width: 440px; text-align: center; padding: 30px; }
+#menu .big { font-size: 56px; color: var(--red); letter-spacing: 12px; text-shadow: 0 0 20px rgba(255,77,90,.8); }
+#menu .sub { font-size: 22px; color: var(--cyan); letter-spacing: 8px; margin-bottom: 20px; }
+#menu p { font-size: 11px; color: var(--dim); line-height: 1.6; }
+#menu .row { display: flex; gap: 6px; justify-content: center; margin: 8px 0; }
+</style>
+</head>
+<body>
+
+<div id="left" class="col">
+  <div class="card">
+    <div class="title">RISK 2210 A.D.<small>TACTICAL COMMAND</small></div>
+    <div class="years" id="years"></div>
+    <div class="kv"><span>YEAR</span><span id="year">-</span></div>
+    <div class="kv"><span>TURN</span><span id="turn">-</span></div>
+    <div class="kv"><span>PHASE</span><span id="phase">-</span></div>
+  </div>
+  <div class="card"><h3>COMMANDERS</h3><div id="players"></div></div>
+  <div class="card"><h3>CONTINENTS &amp; COLONIES</h3><div id="regions"></div></div>
+  <div class="card" style="flex:1 1 120px; display:flex; flex-direction:column; min-height:120px"><h3>COMMS LOG</h3><div id="log"></div></div>
+</div>
+
+<div id="stage">
+  <div id="board">
+    <img src="board_photo.jpg" alt="Risk 2210 A.D. board">
+    <div id="moon"><div class="title">LUNAR COLONIES</div><div class="legend">dashed = landing site · hover for names</div><svg id="moon-lines"></svg></div>
+    <div id="combat" class="card"></div>
+  </div>
+</div>
+
+<div id="right" class="col">
+  <div class="card">
+    <div id="prompt-title">-</div>
+    <div id="prompt-text"></div>
+    <div id="actions"></div>
+    <div id="status"></div>
+  </div>
+  <div class="card" style="flex:1 1 140px; display:flex; flex-direction:column; min-height:140px; overflow:hidden"><h3>COMMAND HAND</h3><div id="hand"></div></div>
+  <div class="card" style="padding:6px 12px"><div id="actions2"></div></div>
+</div>
+
+<div id="tooltip"></div>
+<div id="modal-bg"><div id="modal" class="card"><h2 id="modal-title"></h2><div class="body" id="modal-body"></div><div class="btns" id="modal-btns"></div></div></div>
+
+<div id="menu">
+  <div class="card">
+    <div class="big">RISK</div><div class="sub">2210 A.D.</div>
+    <p>Five years. Earth, the oceans and the Moon. You command the <b style="color:var(--red)">RED</b> forces against the <b style="color:var(--blue)">BLUE</b> machine intelligence; a neutral <b style="color:var(--gray)">GRAY</b> army holds the ground between you.</p>
+    <div class="row"><button id="btn-start" class="primary">LAUNCH CAMPAIGN</button><button id="btn-spectate">SPECTATE BOT VS BOT</button></div>
+    <p>Bidding for turn order · recruit MODs, hire commanders, build Space Stations, buy command cards · invade with d6/d8 combat · fortify. Rules per the 2001 gameplay manual and FAQ.</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ============================================================================
+// DATA: the board graph
+// ============================================================================
+const REGIONS = {
+  NA:{name:"North America",type:"land",bonus:5}, SA:{name:"South America",type:"land",bonus:2}, EU:{name:"Europe",type:"land",bonus:5},
+  AF:{name:"Africa",type:"land",bonus:3}, AS:{name:"Asia",type:"land",bonus:7}, AU:{name:"Australia",type:"land",bonus:2},
+  USP:{name:"US Pacific",type:"water",bonus:2}, ASP:{name:"Asia Pacific",type:"water",bonus:1}, NAT:{name:"N. Atlantic",type:"water",bonus:2},
+  SAT:{name:"S. Atlantic",type:"water",bonus:1}, IND:{name:"Indian",type:"water",bonus:2},
+  CRE:{name:"Cresinion",type:"moon",bonus:2}, DEL:{name:"Delphot",type:"moon",bonus:2}, SAJ:{name:"Sajon",type:"moon",bonus:3},
+};
+// name: [type, region, x%, y%]  (percentages of the board photo; moon nodes are % of the moon inset)
+const TDEF = {
+  "Northwestern Oil Emirate":["land","NA",7.83,9.54], "Nunavut":["land","NA",16.97,9.16], "Exiled States of America":["land","NA",35.51,8.78],
+  "Alberta":["land","NA",13.84,16.03], "Canada":["land","NA",19.84,18.70], "Republique du Quebec":["land","NA",26.63,20.61],
+  "Continental Biospheres":["land","NA",13.05,25.57], "American Republic":["land","NA",19.06,29.77], "Mexico":["land","NA",12.79,37.40],
+  "Nuevo Timoto":["land","SA",18.80,51.76], "Andean Nations":["land","SA",15.14,58.40], "Amazon Desert":["land","SA",21.93,60.69], "Argentina":["land","SA",14.88,73.66],
+  "Iceland GRC":["land","EU",39.69,15.27], "New Avalon":["land","EU",39.95,23.28], "Jotenheim":["land","EU",49.35,9.92], "Warsaw Republic":["land","EU",47.52,24.05],
+  "Ukrayina":["land","EU",59.53,19.85], "Andorra":["land","EU",39.95,32.82], "Imperial Balkania":["land","EU",50.13,28.85],
+  "Saharan Empire":["land","AF",41.78,47.33], "Egypt":["land","AF",50.65,43.51], "Ministry of Djibouti":["land","AF",55.35,52.29],
+  "Zaire Military Zone":["land","AF",50.91,63.36], "Lesotho":["land","AF",51.96,76.34], "Madagascar":["land","AF",61.36,75.95],
+  "Middle East":["land","AS",61.88,41.37], "Afghanistan":["land","AS",67.36,30.92], "Enclave of the Bear":["land","AS",69.19,17.94], "Siberia":["land","AS",74.93,9.16],
+  "Sakha":["land","AS",84.07,8.78], "Pevek":["land","AS",91.38,9.92], "Alden":["land","AS",82.25,19.47], "Khan Industrial State":["land","AS",83.03,26.34],
+  "Japan":["land","AS",92.69,31.68], "Hong Kong":["land","AS",80.42,35.11], "United Indiastan":["land","AS",73.89,44.27], "Angkhor Wat":["land","AS",83.03,47.71],
+  "Java Cartel":["land","AU",87.73,63.74], "New Guinea":["land","AU",96.34,65.27], "Aboriginal League":["land","AU",86.42,82.06], "Australian Testing Ground":["land","AU",93.99,80.15],
+  "Poseidon":["water","USP",6.27,21.76], "Hawaiian Preserve":["water","USP",6.27,33.97], "New Atlantis":["water","USP",8.62,45.80],
+  "Neo Tokyo":["water","ASP",93.73,40.84], "Sung Tzu":["water","ASP",94.26,52.67],
+  "Western Ireland":["water","NAT",32.64,32.06], "New York":["water","NAT",25.33,37.40], "Nova Brasilia":["water","NAT",28.72,50.00],
+  "Neo Paulo":["water","SAT",31.33,69.47], "The Ivory Reef":["water","SAT",39.95,66.41],
+  "South Ceylon":["water","IND",69.97,61.07], "Microcorp":["water","IND",68.67,73.66], "Akara":["water","IND",76.50,80.92],
+  "Harpalus":["moon","CRE",8,30], "Sea of Rains":["moon","CRE",22,26], "Ocean of Storms":["moon","CRE",24,74], "Bay of Dew":["moon","CRE",8,72],
+  "Aristotle":["moon","DEL",38,18], "Sea of Serenity":["moon","DEL",42,50], "Sea of Crisis":["moon","DEL",56,28], "Sea of Nectar":["moon","DEL",54,78],
+  "Rhaeticus":["moon","SAJ",68,44], "Byrgius":["moon","SAJ",68,86], "Sea of Clouds":["moon","SAJ",80,62], "Straight Wall":["moon","SAJ",86,24],
+  "Marsh of Diseases":["moon","SAJ",86,90], "Tycho":["moon","SAJ",94,56],
+};
+const LANDING_SITES = ["Sea of Crisis","Bay of Dew","Tycho"];
+const LINKS = [
+ ["Northwestern Oil Emirate","Nunavut"],["Northwestern Oil Emirate","Alberta"],["Northwestern Oil Emirate","Pevek"],
+ ["Nunavut","Alberta"],["Nunavut","Canada"],["Nunavut","Exiled States of America"],["Exiled States of America","Republique du Quebec"],["Exiled States of America","Iceland GRC"],
+ ["Alberta","Canada"],["Alberta","Continental Biospheres"],["Canada","Republique du Quebec"],["Canada","Continental Biospheres"],["Canada","American Republic"],
+ ["Republique du Quebec","American Republic"],["Continental Biospheres","American Republic"],["Continental Biospheres","Mexico"],["American Republic","Mexico"],["Mexico","Nuevo Timoto"],
+ ["Nuevo Timoto","Andean Nations"],["Nuevo Timoto","Amazon Desert"],["Andean Nations","Amazon Desert"],["Andean Nations","Argentina"],["Amazon Desert","Argentina"],["Amazon Desert","Saharan Empire"],
+ ["Iceland GRC","New Avalon"],["Iceland GRC","Jotenheim"],["New Avalon","Jotenheim"],["New Avalon","Warsaw Republic"],["New Avalon","Andorra"],["Jotenheim","Warsaw Republic"],["Jotenheim","Ukrayina"],
+ ["Warsaw Republic","Andorra"],["Warsaw Republic","Imperial Balkania"],["Warsaw Republic","Ukrayina"],["Ukrayina","Imperial Balkania"],["Ukrayina","Enclave of the Bear"],["Ukrayina","Afghanistan"],["Ukrayina","Middle East"],
+ ["Andorra","Imperial Balkania"],["Andorra","Saharan Empire"],["Imperial Balkania","Middle East"],["Imperial Balkania","Egypt"],
+ ["Saharan Empire","Egypt"],["Saharan Empire","Ministry of Djibouti"],["Saharan Empire","Zaire Military Zone"],["Egypt","Middle East"],["Egypt","Ministry of Djibouti"],
+ ["Ministry of Djibouti","Zaire Military Zone"],["Ministry of Djibouti","Lesotho"],["Ministry of Djibouti","Madagascar"],["Zaire Military Zone","Lesotho"],["Lesotho","Madagascar"],
+ ["Middle East","Afghanistan"],["Middle East","United Indiastan"],["Afghanistan","Enclave of the Bear"],["Afghanistan","Hong Kong"],["Afghanistan","United Indiastan"],
+ ["Enclave of the Bear","Siberia"],["Enclave of the Bear","Hong Kong"],["Siberia","Sakha"],["Siberia","Alden"],["Siberia","Khan Industrial State"],["Siberia","Hong Kong"],
+ ["Sakha","Pevek"],["Sakha","Alden"],["Pevek","Alden"],["Pevek","Khan Industrial State"],["Pevek","Japan"],["Alden","Khan Industrial State"],
+ ["Khan Industrial State","Japan"],["Khan Industrial State","Hong Kong"],["Hong Kong","Angkhor Wat"],["Hong Kong","United Indiastan"],["United Indiastan","Angkhor Wat"],["Angkhor Wat","Java Cartel"],
+ ["Java Cartel","New Guinea"],["Java Cartel","Aboriginal League"],["New Guinea","Aboriginal League"],["New Guinea","Australian Testing Ground"],["Aboriginal League","Australian Testing Ground"],
+ // water lines (as printed on the board; the Pacific links wrap around the edge)
+ ["Poseidon","Northwestern Oil Emirate"],["Poseidon","Hawaiian Preserve"],["Hawaiian Preserve","Mexico"],["Hawaiian Preserve","New Atlantis"],["New Atlantis","Nuevo Timoto"],
+ ["Neo Tokyo","Japan"],["Neo Tokyo","Hong Kong"],["Neo Tokyo","Sung Tzu"],["Sung Tzu","Java Cartel"],["Hawaiian Preserve","Neo Tokyo"],["New Atlantis","Sung Tzu"],
+ ["Western Ireland","New Avalon"],["Western Ireland","New York"],["New York","American Republic"],["New York","Nova Brasilia"],["Nova Brasilia","Nuevo Timoto"],["Nova Brasilia","Saharan Empire"],
+ ["Neo Paulo","Amazon Desert"],["Neo Paulo","The Ivory Reef"],["The Ivory Reef","Saharan Empire"],
+ ["South Ceylon","United Indiastan"],["South Ceylon","Microcorp"],["Microcorp","Madagascar"],["Microcorp","Akara"],["Akara","Aboriginal League"],
+ // moon
+ ["Harpalus","Bay of Dew"],["Harpalus","Sea of Rains"],["Sea of Rains","Bay of Dew"],["Sea of Rains","Ocean of Storms"],["Sea of Rains","Sea of Serenity"],["Sea of Rains","Aristotle"],
+ ["Ocean of Storms","Bay of Dew"],["Ocean of Storms","Rhaeticus"],["Ocean of Storms","Byrgius"],["Aristotle","Sea of Serenity"],["Sea of Serenity","Sea of Crisis"],["Sea of Serenity","Sea of Nectar"],
+ ["Sea of Serenity","Rhaeticus"],["Sea of Crisis","Sea of Nectar"],["Sea of Nectar","Rhaeticus"],["Sea of Nectar","Straight Wall"],["Rhaeticus","Sea of Clouds"],["Rhaeticus","Byrgius"],
+ ["Byrgius","Sea of Clouds"],["Byrgius","Marsh of Diseases"],["Sea of Clouds","Straight Wall"],["Sea of Clouds","Marsh of Diseases"],["Sea of Clouds","Tycho"],["Straight Wall","Tycho"],["Marsh of Diseases","Tycho"],
+];
+const MAP = {};
+for (const [n, [type, region, x, y]] of Object.entries(TDEF)) MAP[n] = { name: n, type, region, x, y, adj: [], site: LANDING_SITES.includes(n) };
+for (const [a, b] of LINKS) { MAP[a].adj.push(b); MAP[b].adj.push(a); }
+const NAMES = Object.keys(MAP);
+const CMDS = ["Land", "Diplomat", "Naval", "Nuclear", "Space"];
+const CMD_INITIAL = { Land: "L", Diplomat: "D", Naval: "N", Nuclear: "X", Space: "S" };
+
+// ============================================================================
+// DATA: the five base-game command decks (Command Card Summary)
+// ============================================================================
+const CARD_DEFS = [
+ // name, deck, copies, cost, when, kind, target, text, amount
+ ["Cease Fire","Diplomat",2,2,"react","ceaseFire","land","Prevent the invasion. The attacker cannot attack any of your territories for the rest of their turn."],
+ ["Colony Influence","Diplomat",4,0,"score","influence","land","If your Diplomat Commander is still alive, move your score marker ahead 3 spaces."],
+ ["Decoys Revealed","Diplomat",2,0,"before","decoys","land","Move any number of your commanders to any number of territories you control."],
+ ["Energy Crisis","Diplomat",2,0,"before","energyCrisis","land","Collect one energy from each opponent."],
+ ["Evacuation","Diplomat",2,0,"react","evacuation","land","Move all units from the attacked territory to any territory you occupy."],
+ ["MOD Reduction","Diplomat",2,2,"before","modReduction","land","All of your opponents must remove 4 MODs. Then you remove 2 MODs."],
+ ["Redeployment","Diplomat",3,0,"end","redeployment","land","Take an extra free move this turn, after you have finished attacking."],
+ ["Territorial Station","Diplomat",3,1,"before","terrStation","land","Place a Space Station on any land territory you occupy."],
+ ["Assemble MODs","Land",3,1,"before","assemble","land","Place 3 MODs on any one land territory you occupy."],
+ ["Colony Influence","Land",2,0,"score","influence","land","If your Land Commander is still alive, move your score marker ahead 3 spaces."],
+ ["Frequency Jam","Land",2,0,"before","jam","land","Choose a player. The chosen player cannot play command cards during your turn."],
+ ["Land Death Trap","Land",1,3,"react","deathTrap","land","Your opponent must destroy half the units in the invading territory. Round up."],
+ ["Reinforcements","Land",3,0,"before","reinforce","land","Place 3 MODs, one each on 3 different land territories you occupy."],
+ ["Scout Forces","Land",3,0,"before","scout","land","Draw a land territory card and keep it secret. When you occupy this territory, immediately place 5 MODs there."],
+ ["Stealth MODs","Land",5,0,"react","stealth","land","Place 3 additional defending MODs in the defending land territory."],
+ ["Stealth Station","Land",1,0,"react","stealthStation","land","Place a Space Station in the defending land territory."],
+ ["Assemble MODs","Naval",3,1,"before","assemble","water","Place 3 MODs on any one water territory you occupy."],
+ ["Colony Influence","Naval",2,0,"score","influence","water","If your Naval Commander is still alive, move your score marker ahead 3 spaces."],
+ ["Frequency Jam","Naval",2,0,"before","jam","water","Choose a player. The chosen player cannot play command cards during your turn."],
+ ["Hidden Energy","Naval",5,0,"before","hiddenEnergy","water","Draw a water territory card. If you occupy it at the end of your turn, collect 4 energy."],
+ ["Reinforcements","Naval",2,0,"before","reinforce","water","Place 3 MODs, one each on 3 different water territories you occupy."],
+ ["Stealth MODs","Naval",5,0,"react","stealth","water","Place 3 additional defending MODs in the defending water territory."],
+ ["Water Death Trap","Naval",1,3,"react","deathTrap","water","Your opponent must destroy half the units in the invading territory. Round up."],
+ ["Aqua Brother","Nuclear",1,3,"before","zone","water","Roll a 6-sided die. Destroy one unit in each territory of the water colony rolled (1-5; 6 = roll again)."],
+ ["Assassin Bomb","Nuclear",3,1,"before","assassin","land","Choose an opponent's commander. Roll an 8-sided die: on a 3 or higher, destroy it."],
+ ["Armageddon","Nuclear",1,4,"before","armageddon","land","Nuclear exchange: this turn your nuclear command cards cost no energy."],
+ ["The Mother","Nuclear",1,3,"before","zone","land","Roll a 6-sided die. Destroy one unit in each territory of the continent rolled: 1 N.America, 2 S.America, 3 Europe, 4 Africa, 5 Asia, 6 Australia."],
+ ["Nicky Boy","Nuclear",1,3,"before","zone","moon","Roll a 6-sided die. Destroy one unit in each territory of the lunar colony rolled: 1-2 Cresinion, 3-4 Delphot, 5-6 Sajon."],
+ ["Rocket Strike Land","Nuclear",2,2,"before","rocket","land","Choose an opponent's land territory. Roll a 6-sided die; that many units are destroyed."],
+ ["Rocket Strike Moon","Nuclear",2,2,"before","rocket","moon","Choose an opponent's lunar territory. Roll a 6-sided die; that many units are destroyed."],
+ ["Rocket Strike Water","Nuclear",2,2,"before","rocket","water","Choose an opponent's water territory. Roll a 6-sided die; that many units are destroyed."],
+ ["Scatter Bomb Land","Nuclear",3,1,"before","scatter","land","Turn over 3 land territory cards. Destroy half the opponents' units on those territories (round up).",3],
+ ["Scatter Bomb Moon","Nuclear",2,1,"before","scatter","moon","Turn over 2 lunar territory cards. Destroy half the opponents' units on those territories (round up).",2],
+ ["Scatter Bomb Water","Nuclear",2,1,"before","scatter","water","Turn over 2 water territory cards. Destroy half the opponents' units on those territories (round up).",2],
+ ["Assemble MODs","Space",3,1,"before","assemble","moon","Place 3 MODs on any one lunar territory you control."],
+ ["Colony Influence","Space",2,0,"score","influence","moon","If your Space Commander is still alive, move your score marker ahead 3 spaces."],
+ ["Energy Extraction","Space",1,1,"before","extraction","moon","If you occupy every territory of a lunar colony at the end of this turn, collect 7 energy."],
+ ["Frequency Jam","Space",2,0,"before","jam","moon","Choose a player. The chosen player cannot play command cards during your turn."],
+ ["Invade Earth","Space",3,0,"before","invadeEarth","moon","Turn over land territory cards until one you do not occupy. This turn you may attack it from any lunar territory."],
+ ["Orbital Mines","Space",2,2,"react","deathTrap","moon","Your opponent must destroy half the units in the invading territory. Round up."],
+ ["Reinforcements","Space",3,0,"before","reinforce","moon","Place 3 MODs, one each on 3 different lunar territories you occupy."],
+ ["Stealth MODs","Space",4,0,"react","stealth","moon","Place 3 additional defending MODs in the defending lunar territory."],
+].map((c, id) => ({ id, name: c[0], deck: c[1], copies: c[2], cost: c[3], when: c[4], kind: c[5], target: c[6], text: c[7], amount: c[8] || 0 }));
+const WHEN_TEXT = { before: "BEFORE FIRST INVASION", react: "OPPONENT INVADES", end: "END OF TURN", score: "END OF GAME" };
+
+// ============================================================================
+// STATE
+// ============================================================================
+const RULES = { years: 5, commanderCost: 3, stationCost: 5, maxStations: 4, cardCost: 1, maxCards: 4, startEnergy: 3, devastation: 4 };
+let S = null;          // game state
+const ui = { resolve: null, mode: "idle", selected: null, hireType: null, cart: [], botDelay: 350, spectate: false, jammedNote: "" };
+const rnd = (n) => Math.floor(Math.random() * n);
+const die = (sides) => 1 + rnd(sides);
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+function newGame(spectate) {
+  ui.spectate = spectate;
+  S = {
+    year: 0, phase: "SETUP", cur: -1, order: [], winner: -1,
+    players: [
+      { id: 0, name: "RED", color: "var(--red)", bot: spectate, energy: RULES.startEnergy, pool: 0, hand: [], elim: false, neutral: false },
+      { id: 1, name: "BLUE", color: "var(--blue)", bot: true, energy: RULES.startEnergy, pool: 0, hand: [], elim: false, neutral: false },
+      { id: 2, name: "GRAY", color: "var(--gray)", bot: true, energy: 0, pool: 0, hand: [], elim: false, neutral: true },
+    ],
+    T: {}, inv: null,
+    decks: {}, tdecks: { land: [], water: [], moon: [] }, tpos: { land: 0, water: 0, moon: 0 },
+  };
+  for (const n of NAMES) S.T[n] = { owner: -1, mods: 0, cmd: {}, station: false, dev: false };
+  for (const d of CMDS) S.decks[d] = shuffle(CARD_DEFS.filter(c => c.deck === d).flatMap(c => Array(c.copies).fill(c.id)));
+  for (const t of ["land", "water", "moon"]) S.tdecks[t] = shuffle(NAMES.filter(n => MAP[n].type === t));
+  for (const p of S.players) resetTurnFlags(p);
+}
+function resetTurnFlags(p) {
+  Object.assign(p, { cardsBought: 0, captures: 0, bonusClaimed: false, invaded: false, invasions: 0, invadeEarth: null, extraFortify: 0,
+    jammed: false, armageddon: false, extraction: false, hidden: [], ceaseFire: [], scout: p.scout || null, bid: -1 });
+}
+
+// ---------- queries ----------
+const T = (n) => S.T[n];
+const units = (n) => T(n).mods + Object.keys(T(n).cmd).length;
+const P = (i) => S.players[i];
+const active = (i) => i >= 0 && i < 2 && !P(i).elim;
+const owned = (p, type) => NAMES.filter(n => T(n).owner === p && (!type || MAP[n].type === type));
+const hasCmd = (p, c) => NAMES.some(n => T(n).owner === p && T(n).cmd[c]);
+const stations = (p) => owned(p).filter(n => T(n).station).length;
+const countUnits = (p) => owned(p).reduce((s, n) => s + units(n), 0);
+const controls = (p, r) => { const ts = NAMES.filter(n => MAP[n].region === r && !T(n).dev); return ts.length > 0 && ts.every(n => T(n).owner === p); };
+const regionBonus = (p) => Object.entries(REGIONS).reduce((s, [k, r]) => s + (controls(p, k) ? r.bonus : 0), 0);
+const income = (p) => Math.max(3, Math.floor(owned(p).length / 3)) + regionBonus(p);
+const score = (p) => owned(p).length + regionBonus(p);
+const isBorder = (p, n) => MAP[n].adj.some(m => !T(m).dev && T(m).owner !== p);
+const cardCost = (p, c) => (c.deck === "Nuclear" && P(p).armageddon) ? 0 : c.cost;
+const drawTerr = (type, skipDev) => {
+  for (let g = 0; g < 200; g++) {
+    if (S.tpos[type] >= S.tdecks[type].length) { shuffle(S.tdecks[type]); S.tpos[type] = 0; }
+    const n = S.tdecks[type][S.tpos[type]++];
+    if (!skipDev || !T(n).dev) return n;
+  }
+  return S.tdecks[type][0];
+};
+const drawCard = (deck) => S.decks[deck].length ? S.decks[deck].pop() : null;
+
+function canInvade(p, from, to) {
+  if (!from || !to || from === to) return "pick two territories";
+  const f = T(from), d = T(to);
+  if (f.owner !== p) return "you do not control the attacking territory";
+  if (d.owner === p) return "you already control the target";
+  if (f.dev || d.dev) return "devastated territories are impassable";
+  if (units(from) < 2) return "need at least 2 units to invade";
+  if (d.owner >= 0 && P(p).ceaseFire.includes(d.owner)) return "a Cease Fire protects " + P(d.owner).name + " this turn";
+  const ft = MAP[from].type, tt = MAP[to].type;
+  if ((ft === "water" || tt === "water") && !hasCmd(p, "Naval")) return "a Naval Commander must be in play to invade into or out of water";
+  if ((ft === "moon" || tt === "moon") && !hasCmd(p, "Space")) return "a Space Commander must be in play to invade into or out of the Moon";
+  if (ft === "moon" && tt !== "moon") return P(p).invadeEarth === to ? null : "Earth can only be invaded from the Moon with Invade Earth";
+  if (ft !== "moon" && tt === "moon") { if (!f.station) return "lunar invasions launch from a Space Station"; return MAP[to].site ? null : "from Earth you may only invade a landing site (Sea of Crisis, Bay of Dew, Tycho)"; }
+  return MAP[from].adj.includes(to) ? null : "territories are not adjacent";
+}
+function attackD8(from, to, nDice) {
+  const f = T(from), ft = MAP[from].type, tt = MAP[to].type, which = [];
+  const ok = { Nuclear: true, Land: ft === "land" || tt === "land", Naval: ft === "water" || tt === "water", Space: ft === "moon" || tt === "moon", Diplomat: false };
+  for (const c of CMDS) if (f.cmd[c] && ok[c] && which.length < nDice) which.push(c);
+  return which;
+}
+function fortifyPath(p, from, to) {
+  if (T(from).owner !== p || T(to).owner !== p) return false;
+  const sts = owned(p).filter(n => T(n).station), sites = owned(p).filter(n => MAP[n].site);
+  const seen = new Set([from]), q = [from];
+  while (q.length) {
+    const c = q.shift();
+    if (c === to) return true;
+    const nexts = [...MAP[c].adj];
+    if (T(c).station) nexts.push(...sites);
+    if (MAP[c].site) nexts.push(...sts);
+    for (const n of nexts) if (T(n).owner === p && !T(n).dev && !seen.has(n)) { seen.add(n); q.push(n); }
+  }
+  return false;
+}
+function reactivePlayable(p, c) {
+  const inv = S.inv;
+  if (!inv || c.when !== "react" || !hasCmd(p, c.deck) || P(p).energy < cardCost(p, c) || P(p).jammed) return false;
+  const tt = MAP[inv.to].type;
+  switch (c.kind) {
+    case "stealth": return c.target === tt && inv.defender >= 0;
+    case "stealthStation": return tt === "land" && inv.defender === p && !T(inv.to).station && stations(p) < RULES.maxStations;
+    case "deathTrap": return c.target === tt && inv.defender === p;
+    case "ceaseFire": return inv.defender === p;
+    case "evacuation": return inv.defender === p && owned(p).length > 1;
+  }
+  return false;
+}
+
+// ---------- mutation helpers ----------
+function log(msg, cls) { const el = document.getElementById("log"); const d = document.createElement("div"); if (cls) d.className = cls; d.textContent = msg; el.appendChild(d); el.scrollTop = el.scrollHeight; }
+function destroyUnits(n, k) {
+  const t = T(n); let removed = Math.min(k, t.mods); t.mods -= removed;
+  for (const c of CMDS) if (removed < k && t.cmd[c]) { delete t.cmd[c]; removed++; }
+  if (units(n) === 0 && !t.station) t.owner = -1;
+  if (removed > 0) fx.shock(n, "#ff5040");
+  return removed;
+}
+function devastate(n) { S.T[n] = { owner: -1, mods: 0, cmd: {}, station: false, dev: true }; log(MAP[n].name + " is devastated"); fx.shock(n, "#ff2020"); }
+function checkElim(p) {
+  if (!active(p) || countUnits(p) > 0) return;
+  P(p).elim = true; P(p).hand = [];
+  for (const n of owned(p)) { T(n).station = false; T(n).owner = -1; }
+  log(P(p).name + " has been eliminated!", "y");
+}
+
+// ============================================================================
+// UI: rendering
+// ============================================================================
+const $ = (id) => document.getElementById(id);
+function buildBoard() {
+  const board = $("board"), moon = $("moon");
+  for (const n of NAMES) {
+    const m = MAP[n];
+    const el = document.createElement("div");
+    el.className = "node"; el.id = "n-" + n; el.style.left = m.x + "%"; el.style.top = m.y + "%";
+    el.innerHTML = `<span class="num"></span><span class="badges"></span>`;
+    if (m.type === "moon") { el.innerHTML += `<span class="label">${n}</span>`; if (m.site) el.classList.add("site"); moon.appendChild(el); }
+    else board.appendChild(el);
+    el.addEventListener("click", () => onNode(n));
+    el.addEventListener("mouseenter", (e) => showTip(n, e));
+    el.addEventListener("mousemove", (e) => moveTip(e));
+    el.addEventListener("mouseleave", hideTip);
+  }
+  const svg = $("moon-lines");
+  for (const [a, b] of LINKS) if (MAP[a].type === "moon") {
+    const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    l.setAttribute("x1", MAP[a].x + "%"); l.setAttribute("y1", MAP[a].y + "%"); l.setAttribute("x2", MAP[b].x + "%"); l.setAttribute("y2", MAP[b].y + "%");
+    svg.appendChild(l);
+  }
+  const yrs = $("years"); for (let y = 1; y <= 5; y++) { const d = document.createElement("div"); d.textContent = 2205 + y; yrs.appendChild(d); }
+}
+function render() {
+  if (!S) return;
+  for (const n of NAMES) {
+    const t = T(n), el = $("n-" + n);
+    el.className = "node" + (MAP[n].type === "moon" && MAP[n].site ? " site" : "");
+    if (t.dev) el.classList.add("dev");
+    else if (t.owner >= 0) el.classList.add("p" + t.owner);
+    el.querySelector(".num").textContent = t.dev || t.owner < 0 ? "" : units(n);
+    el.querySelector(".badges").textContent = Object.keys(t.cmd).map(c => CMD_INITIAL[c]).join("");
+    let st = el.querySelector(".station");
+    if (t.station && !st) { st = document.createElement("span"); st.className = "station"; el.appendChild(st); }
+    if (!t.station && st) st.remove();
+  }
+  applyHighlights();
+  // meta
+  [...$("years").children].forEach((d, i) => { d.className = i + 1 === S.year ? "active" : i + 1 < S.year ? "done" : ""; });
+  $("year").textContent = S.year ? `${S.year} / 5  (${2205 + S.year} A.D.)` : "-";
+  $("turn").textContent = S.cur >= 0 ? P(S.cur).name : "-";
+  $("phase").textContent = S.phase;
+  // players
+  $("players").innerHTML = S.players.map(p => `<div class="player ${S.cur === p.id ? "active" : ""}" style="border-color:${p.color}">
+    <div class="name" style="color:${p.color}">${p.name}${p.bot ? (p.neutral ? " · NEUTRAL" : " · BOT") : " · YOU"}${p.elim ? " · ELIMINATED" : ""}</div>
+    <div class="stat">${p.neutral ? `TERRITORIES ${owned(p.id).length}` : `ENERGY ${p.bot && !ui.spectate && !p.neutral ? "?" : p.energy} · MODS ${p.pool}<br>TERR ${owned(p.id).length} · SCORE ${score(p.id)}<br>STATIONS ${stations(p.id)} · CARDS ${p.hand.length}<br>CMD ${CMDS.filter(c => hasCmd(p.id, c)).map(c => CMD_INITIAL[c]).join(" ") || "-"}`}</div></div>`).join("");
+  $("regions").innerHTML = Object.entries(REGIONS).map(([k, r]) => { const o = [0, 1, 2].find(p => controls(p, k)); return `<div><span>${r.name} +${r.bonus}</span><span style="color:${o === undefined ? "#556" : P(o).color}">${o === undefined ? "-" : P(o).name}</span></div>`; }).join("");
+  renderHand();
+}
+function renderHand() {
+  const me = ui.spectate ? -1 : 0, el = $("hand");
+  if (me < 0) { el.innerHTML = `<div style="font-size:10px;color:var(--dim)">Spectating - hands are hidden.</div>`; return; }
+  const p = P(me);
+  const reactive = ui.mode === "react";
+  const canBefore = S.cur === me && !p.invaded && (ui.mode === "recruit" && p.pool === 0 || ui.mode === "attack");
+  const canEnd = S.cur === me && ui.mode === "fortify";
+  el.innerHTML = p.hand.map((id, i) => {
+    const c = CARD_DEFS[id];
+    const usable = reactive ? reactivePlayable(me, c) : ((canBefore && c.when === "before") || (canEnd && c.when === "end")) && hasCmd(me, c.deck) && p.energy >= cardCost(me, c);
+    const why = usable ? "Playable now." : !hasCmd(me, c.deck) ? `Needs your ${c.deck} Commander in play.` : p.energy < cardCost(me, c) ? "Not enough energy." : p.jammed ? "Jammed this turn." : "Cannot be played at this moment.";
+    return `<div class="ccard ${usable ? "playable" : ""}" data-i="${i}"><span class="icon deck-${c.deck}">${c.deck[0]}</span><span class="cn">${c.name}</span>
+      <div class="cm">${c.deck.toUpperCase()} · ${cardCost(me, c)} ENERGY · ${WHEN_TEXT[c.when]}</div>
+      <div class="tip"><b>${c.name}</b><br>${c.text}<br><br>${why}</div></div>`;
+  }).join("") || `<div style="font-size:10px;color:var(--dim)">No command cards. Buy them during recruitment (1 energy each, matching commander required).</div>`;
+  el.querySelectorAll(".ccard.playable").forEach(d => d.addEventListener("click", () => emit({ type: "card", idx: +d.dataset.i })));
+}
+function setPrompt(title, text, buttons = [], status = "") {
+  $("prompt-title").textContent = title; $("prompt-text").textContent = text; $("status").textContent = status;
+  const box = $("actions"); box.innerHTML = "";
+  for (const b of buttons) {
+    const el = document.createElement("button"); el.textContent = b.label; if (b.cls) el.className = b.cls; el.disabled = !!b.disabled;
+    el.addEventListener("click", () => emit({ type: "btn", id: b.id })); box.appendChild(el);
+  }
+}
+function setStatus(s) { $("status").textContent = s || ""; }
+const HL = { option: new Set(), target: new Set(), fortify: new Set(), selected: null, attack: null, defend: null };
+function clearHL() { HL.option.clear(); HL.target.clear(); HL.fortify.clear(); HL.selected = null; }
+function applyHighlights() {
+  for (const n of NAMES) {
+    const el = $("n-" + n); el.classList.remove("hl-option", "hl-target", "hl-fortify", "hl-selected", "hl-attack", "hl-defend");
+    if (HL.option.has(n)) el.classList.add("hl-option");
+    if (HL.target.has(n)) el.classList.add("hl-target");
+    if (HL.fortify.has(n)) el.classList.add("hl-fortify");
+    if (HL.selected === n) el.classList.add("hl-selected");
+    if (HL.attack === n) el.classList.add("hl-attack");
+    if (HL.defend === n) el.classList.add("hl-defend");
+  }
+}
+function showTip(n, e) {
+  const t = T(n), m = MAP[n], r = REGIONS[m.region];
+  let body = `<b>${n}</b><br>${m.type.toUpperCase()} · ${r.name} (+${r.bonus})<br>`;
+  if (t.dev) body += "DEVASTATED - impassable"; else if (t.owner < 0) body += "Unoccupied";
+  else body += `${P(t.owner).name}: ${t.mods} MODs${Object.keys(t.cmd).map(c => " + " + c).join("")}${t.station ? " · Space Station" : ""}`;
+  if (m.site) body += "<br>Lunar landing site";
+  const tip = $("tooltip"); tip.innerHTML = body; tip.style.display = "block"; moveTip(e);
+}
+function moveTip(e) { const tip = $("tooltip"); tip.style.left = Math.min(e.clientX + 16, innerWidth - 260) + "px"; tip.style.top = Math.min(e.clientY + 16, innerHeight - 100) + "px"; }
+function hideTip() { $("tooltip").style.display = "none"; }
+const fx = {
+  pos(n) { const m = MAP[n]; if (m.type !== "moon") return { x: m.x, y: m.y }; return { x: 20 + m.x * 0.30, y: 73 + m.y * 0.25 }; },
+  shock(n, color) { const p = fx.pos(n), el = document.createElement("div"); el.className = "shock"; el.style.left = p.x + "%"; el.style.top = p.y + "%"; el.style.borderColor = color || "#5ce1ff"; $("board").appendChild(el); setTimeout(() => el.remove(), 750); },
+  flash(n) { const el = $("n-" + n); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); },
+  async orb(from, to, color) { const a = fx.pos(from), b = fx.pos(to), el = document.createElement("div"); el.className = "orb"; el.style.left = a.x + "%"; el.style.top = a.y + "%"; if (color) el.style.boxShadow = `0 0 12px 4px ${color}`; $("board").appendChild(el); await sleep(30); el.style.left = b.x + "%"; el.style.top = b.y + "%"; await sleep(620); el.remove(); },
+  shake() { const b = $("board"); b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); },
+};
+
+// ---------- input plumbing ----------
+function userInput() { return new Promise(r => { ui.resolve = r; }); }
+function emit(a) { if (ui.resolve) { const r = ui.resolve; ui.resolve = null; r(a); } }
+function onNode(n) { emit({ type: "terr", name: n }); }
+function modal(title, body, buttons) {
+  return new Promise(res => {
+    $("modal-title").textContent = title; $("modal-body").textContent = body;
+    const box = $("modal-btns"); box.innerHTML = "";
+    for (const b of buttons) { const el = document.createElement("button"); el.textContent = b.label; if (b.cls) el.className = b.cls; el.addEventListener("click", () => { $("modal-bg").classList.remove("show"); res(b.value); }); box.appendChild(el); }
+    $("modal-bg").classList.add("show");
+  });
+}
+function modalNumber(title, body, lo, hi, def) {
+  return new Promise(res => {
+    $("modal-title").textContent = title; $("modal-body").textContent = body;
+    const box = $("modal-btns"); box.innerHTML = `<input type="number" id="modal-num" min="${lo}" max="${hi}" value="${def}"> `;
+    const ok = document.createElement("button"); ok.textContent = "CONFIRM"; ok.className = "primary";
+    ok.addEventListener("click", () => { const v = Math.max(lo, Math.min(hi, parseInt($("modal-num").value) || lo)); $("modal-bg").classList.remove("show"); res(v); });
+    box.appendChild(ok); $("modal-bg").classList.add("show"); setTimeout(() => $("modal-num").focus(), 50);
+  });
+}
+/** Human picks one of `options` (territory names) by clicking; bots use `botPick`. */
+async function choose(p, options, text, botPick) {
+  if (!options.length) return null;
+  if (P(p).bot) return botPick ? botPick(options) : options[rnd(options.length)];
+  const prevMode = ui.mode; ui.mode = "choose";
+  clearHL(); for (const o of options) HL.option.add(o); render();
+  setPrompt("CHOOSE A TERRITORY", text, []);
+  while (true) { const a = await userInput(); if (a.type === "terr" && options.includes(a.name)) { ui.mode = prevMode; clearHL(); render(); return a.name; } }
+}
+async function choosePlayer(p, options, text) {
+  if (P(p).bot) return options.reduce((b, q) => P(q).hand.length > P(b).hand.length ? q : b, options[0]);
+  return modal("CHOOSE A PLAYER", text, options.map(q => ({ label: P(q).name, value: q })));
+}
+
+// ============================================================================
+// GAME FLOW
+// ============================================================================
+async function runGame() {
+  await setup();
+  for (let y = 1; y <= RULES.years; y++) {
+    S.year = y; log(`=== Year ${y} (${2205 + y} A.D.) ===`, "y");
+    await bidding();
+    for (const p of S.order) if (active(p)) await takeTurn(p);
+  }
+  finalScoring();
+}
+
+async function setup() {
+  S.phase = "SETUP"; render();
+  for (let i = 0; i < RULES.devastation; i++) devastate(drawTerr("land", true));
+  // 2-player rules: the neutral army holds 16 land, 6 water and 6 lunar territories with 3 MODs each
+  const place = (type, count) => { let k = 0, g = 0; while (k < count && g++ < 500) { const n = drawTerr(type); if (T(n).dev || T(n).owner !== -1) continue; T(n).owner = 2; T(n).mods = 3; k++; } };
+  place("land", 16); place("water", 6); place("moon", 6);
+  log("Neutral armies hold 16 land, 6 water and 6 lunar territories");
+  P(0).pool = P(1).pool = 30;
+  // claim the remaining land alternately (each player picks; the human clicks)
+  let free = NAMES.filter(n => MAP[n].type === "land" && !T(n).dev && T(n).owner === -1);
+  let p = 0;
+  while (free.length) {
+    const pick = await choose(p, free, `Claim a territory (${free.length} left). Each claim places 1 MOD.`, opts => { const near = opts.filter(o => MAP[o].adj.some(a => T(a).owner === p)); return near.length && rnd(4) ? near[rnd(near.length)] : opts[rnd(opts.length)]; });
+    T(pick).owner = p; T(pick).mods = 1; P(p).pool--; free = free.filter(n => n !== pick); render(); p = 1 - p;
+  }
+  // place the remaining MODs
+  S.phase = "PLACEMENT";
+  for (const q of [0, 1]) {
+    if (P(q).bot) { while (P(q).pool > 0) { const b = borderTerrs(q); T(b[rnd(b.length)]).mods++; P(q).pool--; } continue; }
+    ui.mode = "recruit";
+    while (P(q).pool > 0) {
+      render(); setPrompt("PLACE STARTING MODS", `${P(q).pool} MODs left. Click one of your territories (+1), or use the buttons on a selected territory.`, [
+        { id: "plus5", label: "+5 on selected", disabled: !ui.selected || P(q).pool < 5 }, { id: "all", label: "All on selected", disabled: !ui.selected }]);
+      const a = await userInput();
+      if (a.type === "terr" && T(a.name).owner === q) { ui.selected = a.name; HL.selected = a.name; T(a.name).mods++; P(q).pool--; }
+      if (a.type === "btn" && ui.selected) { const k = a.id === "all" ? P(q).pool : Math.min(5, P(q).pool); T(ui.selected).mods += k; P(q).pool -= k; }
+    }
+    clearHL(); ui.selected = null;
+  }
+  // starting Space Station, Land Commander, Diplomat
+  for (const q of [0, 1]) {
+    const best = owned(q).reduce((b, n) => T(n).mods > T(b).mods ? n : b);
+    const st = await choose(q, owned(q, "land"), "Place your starting SPACE STATION", () => best);
+    const lc = await choose(q, owned(q), "Place your LAND COMMANDER", () => best);
+    const dp = await choose(q, owned(q), "Place your DIPLOMAT", (o) => { const b = borderTerrs(q); return b[rnd(b.length)]; });
+    T(st).station = true; T(lc).cmd.Land = true; T(dp).cmd.Diplomat = true;
+    log(`${P(q).name}: Space Station in ${st}, Land Commander in ${lc}, Diplomat in ${dp}`);
+  }
+  render();
+}
+const borderTerrs = (p) => { const b = owned(p).filter(n => isBorder(p, n)); return b.length ? b : owned(p); };
+
+async function bidding() {
+  S.phase = "BIDDING"; S.cur = -1; render();
+  const bids = {};
+  for (const p of [0, 1]) {
+    if (!active(p)) continue;
+    if (P(p).bot) bids[p] = P(p).energy <= 3 ? 0 : rnd(Math.min(3, Math.floor(P(p).energy / 3)) + 1);
+    else { setPrompt("BIDDING", "Secretly bid energy for turn order. Highest bidder chooses their marker; all bids are spent.", []); bids[p] = await modalNumber("SECRET BID", `You have ${P(p).energy} energy. How much do you bid for turn order?`, 0, P(p).energy, 0); }
+  }
+  const ps = Object.keys(bids).map(Number);
+  for (const p of ps) P(p).energy -= bids[p];
+  const tie = {}; for (const p of ps) tie[p] = die(6);
+  ps.sort((a, b) => bids[b] - bids[a] || tie[b] - tie[a]);
+  log("Bids: " + ps.map(p => `${P(p).name} ${bids[p]}`).join(", "));
+  let markers = ps.map((_, i) => i); const order = new Array(ps.length).fill(-1);
+  for (const p of ps) {
+    let m;
+    if (P(p).bot) m = markers[0];
+    else m = await modal("CHOOSE TURN ORDER", `You won the choice (bid ${bids[p]}). Which turn marker do you take?`, markers.map(k => ({ label: "#" + (k + 1), value: k })));
+    order[m] = p; markers = markers.filter(k => k !== m);
+    log(`${P(p).name} takes turn marker #${m + 1}`);
+  }
+  S.order = order;
+}
+
+async function takeTurn(p) {
+  const pl = P(p); resetTurnFlags(pl); S.cur = p; S.inv = null;
+  const inc = income(p); pl.pool += inc; pl.energy += inc;
+  let stMods = 0; for (const n of owned(p)) if (T(n).station) { T(n).mods++; stMods++; }
+  log(`--- ${pl.name}: ${owned(p).length} territories, +${inc} MODs, +${inc} energy${stMods ? `, +${stMods} at stations` : ""}`, "y");
+  S.phase = "RECRUIT"; clearHL(); render();
+  if (pl.bot) { setPrompt(pl.name + " IS THINKING", "The bot recruits, invades and fortifies. You will be asked to defend or play reactive cards when it attacks you.", []); await botTurn(p); } else { await humanRecruit(p); await humanAttack(p); await humanFortify(p); }
+  await endTurn(p);
+}
+async function endTurn(p) {
+  const pl = P(p);
+  for (const n of pl.hidden) if (T(n).owner === p) { pl.energy += 4; log(`${pl.name} collects 4 hidden energy from ${n}`); }
+  if (pl.extraction) for (const [k, r] of Object.entries(REGIONS)) if (r.type === "moon" && controls(p, k)) { pl.energy += 7; log(`${pl.name} extracts 7 energy from ${r.name}`); break; }
+  for (const q of S.players) q.jammed = false;
+  S.cur = -1; S.inv = null; clearHL(); render();
+}
+
+// ---------- human phases ----------
+async function humanRecruit(p) {
+  const pl = P(p); ui.mode = "recruit"; ui.selected = null; ui.hireType = null; ui.cart = [];
+  while (true) {
+    render();
+    const btns = [];
+    if (pl.pool > 0) {
+      btns.push({ id: "plus5", label: "+5 on selected", disabled: !ui.selected || pl.pool < 5 }, { id: "all", label: "All on selected", disabled: !ui.selected });
+      setPrompt("RECRUIT", `${pl.pool} MODs to deploy. Click a territory you control (+1).`, btns);
+    } else {
+      for (const c of CMDS) btns.push({ id: "hire:" + c, label: `Hire ${c}`, disabled: hasCmd(p, c) || pl.energy < RULES.commanderCost, cls: ui.hireType === c ? "toggled" : "" });
+      btns.push({ id: "hire:station", label: "Space Station (5E)", disabled: pl.energy < RULES.stationCost || stations(p) >= RULES.maxStations, cls: ui.hireType === "station" ? "toggled" : "" });
+      for (const c of CMDS) btns.push({ id: "buy:" + c, label: `+${c} card (${S.decks[c].length})`, cls: "small", disabled: !hasCmd(p, c) || !S.decks[c].length || ui.cart.length + pl.cardsBought >= RULES.maxCards || ui.cart.length >= pl.energy });
+      if (ui.cart.length) btns.push({ id: "buy", label: `Buy ${ui.cart.length}: ${ui.cart.map(c => c[0]).join(" ")}`, cls: "primary" }, { id: "clear", label: "Clear", cls: "small" });
+      btns.push({ id: "end", label: "End recruitment", cls: "primary" });
+      setPrompt("RECRUIT", `Energy ${pl.energy}. Hire (3E) / station (5E): pick an option, then click a territory. Cards cost 1E (max 4). Glowing cards can be played now.`, btns);
+    }
+    const a = await userInput();
+    if (a.type === "terr") {
+      const n = a.name;
+      if (T(n).owner !== p) { setStatus("Choose a territory you control"); continue; }
+      if (pl.pool > 0) { ui.selected = n; HL.selected = n; T(n).mods++; pl.pool--; fx.flash(n); }
+      else if (ui.hireType === "station") { if (MAP[n].type !== "land") setStatus("Stations only on land"); else if (T(n).station) setStatus("Already has a station"); else { pl.energy -= RULES.stationCost; T(n).station = true; ui.hireType = null; clearHL(); log(`${pl.name} builds a Space Station in ${n}`); } }
+      else if (ui.hireType) { pl.energy -= RULES.commanderCost; T(n).cmd[ui.hireType] = true; log(`${pl.name} hires a ${ui.hireType} Commander in ${n}`); ui.hireType = null; clearHL(); }
+      else { ui.selected = n; HL.selected = n; }
+    } else if (a.type === "btn") {
+      if (a.id === "plus5" || a.id === "all") { const k = a.id === "all" ? pl.pool : Math.min(5, pl.pool); T(ui.selected).mods += k; pl.pool -= k; }
+      else if (a.id.startsWith("hire:")) { const h = a.id.slice(5); ui.hireType = ui.hireType === h ? null : h; clearHL(); if (ui.hireType) for (const n of owned(p)) if (h !== "station" || (MAP[n].type === "land" && !T(n).station)) HL.option.add(n); }
+      else if (a.id.startsWith("buy:")) ui.cart.push(a.id.slice(4));
+      else if (a.id === "clear") ui.cart = [];
+      else if (a.id === "buy") { for (const c of ui.cart) { pl.hand.push(drawCard(c)); pl.energy -= RULES.cardCost; pl.cardsBought++; } log(`${pl.name} buys ${ui.cart.length} command card(s)`); ui.cart = []; }
+      else if (a.id === "end") break;
+    } else if (a.type === "card") await playCard(p, a.idx, "before");
+  }
+  clearHL(); ui.mode = "idle";
+}
+async function humanAttack(p) {
+  const pl = P(p); ui.mode = "attack"; ui.selected = null; S.phase = "ATTACK"; clearHL();
+  while (true) {
+    render();
+    const inv = S.inv;
+    if (!inv) {
+      setPrompt("ATTACK", ui.selected ? `From ${ui.selected}: click an orange target.` : "Click one of your territories to attack from, then a highlighted target. Cards can still be played until your first invasion.", [{ id: "end", label: "End attacks", cls: "primary" }]);
+      const a = await userInput();
+      if (a.type === "btn" && a.id === "end") break;
+      if (a.type === "card") { await playCard(p, a.idx, "before"); continue; }
+      if (a.type !== "terr") continue;
+      if (T(a.name).owner === p) { ui.selected = a.name; clearHL(); HL.selected = a.name; for (const n of NAMES) if (!canInvade(p, a.name, n)) HL.target.add(n); setStatus(""); }
+      else if (ui.selected) { const why = canInvade(p, ui.selected, a.name); if (why) setStatus(why); else { clearHL(); await declareInvasion(p, ui.selected, a.name); } }
+    } else if (!inv.captured) {
+      const maxD = Math.min(3, units(inv.from) - 1);
+      setPrompt("COMBAT", `${inv.from} (${units(inv.from)}) vs ${inv.to} (${units(inv.to)}). Roll up to ${maxD} dice.`, [
+        ...[1, 2, 3].map(d => ({ id: "roll" + d, label: "Roll " + d, cls: "danger", disabled: d > maxD })), { id: "retreat", label: "Retreat", disabled: !inv.attackedOnce }]);
+      const a = await userInput(); if (a.type !== "btn") continue;
+      if (a.id === "retreat") { S.inv = null; HL.attack = HL.defend = null; ui.selected = null; $("combat").classList.remove("show"); }
+      else await attack(p, +a.id.slice(4));
+    } else {
+      const maxMove = units(inv.from) - 1, minMove = Math.max(1, Math.min(inv.lastDice, maxMove));
+      const n = await modalNumber("TERRITORY CAPTURED", `${inv.to} is yours! Move in how many units (min ${inv.lastDice > maxMove ? maxMove : minMove}, max ${maxMove})? Commanders that rolled d8s move in automatically.`, minMove, maxMove, maxMove);
+      moveIn(p, n); ui.selected = inv.to; clearHL(); HL.selected = inv.to; for (const m of NAMES) if (!canInvade(p, inv.to, m)) HL.target.add(m);
+    }
+  }
+  if (S.inv && !S.inv.captured) S.inv = null;
+  if (S.inv && S.inv.captured) moveIn(p, Math.max(1, Math.min(S.inv.lastDice, units(S.inv.from) - 1)));
+  $("combat").classList.remove("show"); HL.attack = HL.defend = null; clearHL(); ui.mode = "idle";
+}
+async function humanFortify(p) {
+  const pl = P(p); ui.mode = "fortify"; S.phase = "FORTIFY"; ui.selected = null; clearHL();
+  let moves = 0;
+  while (true) {
+    render();
+    setPrompt("FORTIFY", ui.selected ? `From ${ui.selected}: click a blue destination. Commanders move too if you tick them.` : "One free move along a chain of your territories (Space Station <-> landing sites count). Click the source territory, or skip.", [{ id: "skip", label: moves ? "End turn" : "Skip fortify", cls: "primary" }]);
+    const a = await userInput();
+    if (a.type === "btn") break;
+    if (a.type === "card") { await playCard(p, a.idx, "end"); continue; }
+    if (a.type !== "terr" || T(a.name).owner !== p) continue;
+    if (!ui.selected || a.name === ui.selected) { ui.selected = a.name; clearHL(); HL.selected = a.name; for (const n of owned(p)) if (n !== a.name && fortifyPath(p, a.name, n)) HL.fortify.add(n); }
+    else if (fortifyPath(p, ui.selected, a.name)) {
+      const f = T(ui.selected), max = units(ui.selected) - 1; if (max < 1) { setStatus("Nothing to move"); continue; }
+      const k = await modalNumber("FORTIFY", `Move how many units from ${ui.selected} to ${a.name}? (max ${max}; MODs move first, then commanders)`, 1, max, max);
+      let moved = 0; const m = Math.min(k, f.mods); f.mods -= m; T(a.name).mods += m; moved = m;
+      for (const c of CMDS) if (moved < k && f.cmd[c]) { delete f.cmd[c]; T(a.name).cmd[c] = true; moved++; }
+      log(`${pl.name} fortifies ${moved} unit(s) from ${ui.selected} to ${a.name}`); await fx.orb(ui.selected, a.name, "#ff8090"); moves++; clearHL(); ui.selected = null;
+      if (pl.extraFortify > 0) { pl.extraFortify--; setStatus("Redeployment: you may fortify again"); continue; }
+      break;
+    } else setStatus("No path of friendly territories connects them");
+  }
+  clearHL(); ui.mode = "idle";
+}
+
+// ---------- invasion mechanics (shared by human and bot) ----------
+async function declareInvasion(p, from, to) {
+  const inv = { attacker: p, from, to, defender: T(to).owner, contested: units(to) > 0, attackedOnce: false, captured: false, lastDice: 0, mustMove: [] };
+  S.inv = inv; P(p).invaded = true; P(p).invasions++;
+  HL.attack = from; HL.defend = to; render();
+  log(`${P(p).name} invades ${to} from ${from}`);
+  if (inv.contested) {
+    // reactive cards: defender first, then the other player
+    for (const q of [inv.defender, ...[0, 1].filter(x => x !== inv.defender && x !== p)]) {
+      if (!active(q)) continue;
+      for (let guard = 0; guard < 6 && S.inv; guard++) {
+        const playable = P(q).hand.map((id, i) => ({ c: CARD_DEFS[id], i })).filter(x => reactivePlayable(q, x.c));
+        if (!playable.length) break;
+        let pick = null;
+        if (P(q).bot) pick = botReactive(q, playable, inv);
+        else { ui.mode = "react"; render(); setPrompt("OPPONENT INVADES", `${P(p).name} invades ${to} from ${from} (${units(from)} vs ${units(to)}). Play a glowing reactive card, or pass.`, [{ id: "pass", label: "Pass" }]); const a = await userInput(); ui.mode = "idle"; if (a.type === "card") pick = a.idx; }
+        if (pick === null) break;
+        await applyReactive(q, pick);
+      }
+      if (!S.inv) break;
+    }
+    if (!S.inv) { HL.attack = HL.defend = null; render(); return; }
+    if (units(to) === 0) occupyEmpty();
+  } else occupyEmpty();
+  render();
+}
+function occupyEmpty() {
+  const inv = S.inv, d = T(inv.to), old = d.owner; d.owner = inv.attacker;
+  if (old >= 0 && old !== inv.attacker && d.station && stations(inv.attacker) > RULES.maxStations) d.station = false;
+  inv.captured = true; inv.lastDice = 1; inv.attackedOnce = true;
+  log(`${P(inv.attacker).name} occupies ${inv.to}`);
+}
+async function applyReactive(q, idx) {
+  const inv = S.inv, c = CARD_DEFS[P(q).hand[idx]]; P(q).energy -= cardCost(q, c); P(q).hand.splice(idx, 1);
+  log(`${P(q).name} plays ${c.name}`);
+  switch (c.kind) {
+    case "stealth": T(inv.to).mods += 3; fx.flash(inv.to); break;
+    case "stealthStation": T(inv.to).station = true; break;
+    case "deathTrap": { const n = Math.ceil(units(inv.from) / 2); log(`${P(inv.attacker).name} loses ${n} unit(s) in ${inv.from} to the trap`); destroyUnits(inv.from, n); checkElim(inv.attacker); if (units(inv.from) < 2 || !active(inv.attacker)) { S.inv = null; log("The invasion collapses"); } break; }
+    case "ceaseFire": P(inv.attacker).ceaseFire.push(q); S.inv = null; log(`Cease Fire: ${P(inv.attacker).name} may not attack ${P(q).name} again this turn`); break;
+    case "evacuation": { const dests = owned(q).filter(n => n !== inv.to); const to = await choose(q, dests, "Evacuate all units to", o => o.reduce((b, n) => units(n) > units(b) ? n : b)); const f = T(inv.to), d = T(to); const moved = units(inv.to); d.mods += f.mods; f.mods = 0; for (const k of CMDS) if (f.cmd[k]) { delete f.cmd[k]; d.cmd[k] = true; } if (!f.station) f.owner = -1; log(`${P(q).name} evacuates ${moved} unit(s) to ${to}`); await fx.orb(inv.to, to); break; }
+  }
+  render();
+}
+async function attack(p, nDice) {
+  const inv = S.inv, f = T(inv.from), d = T(inv.to);
+  const maxD = Math.min(2, units(inv.to));
+  let dDice = maxD;
+  if (maxD === 2 && active(inv.defender) && !P(inv.defender).bot) dDice = await modal("DEFEND", `${P(p).name} attacks ${inv.to} (${units(inv.to)} units) from ${inv.from} (${units(inv.from)}) with ${nDice} dice. Defend with how many?`, [{ label: "1 die", value: 1 }, { label: "2 dice", value: 2 }]);
+  const which = attackD8(inv.from, inv.to, nDice), a8 = which.length, d8 = d.station ? dDice : Math.min(dDice, Object.keys(d.cmd).length);
+  const ar = Array.from({ length: nDice }, (_, i) => die(i < a8 ? 8 : 6)).sort((x, y) => y - x);
+  const dr = Array.from({ length: dDice }, (_, i) => die(i < d8 ? 8 : 6)).sort((x, y) => y - x);
+  let aLost = 0, dLost = 0; for (let i = 0; i < Math.min(nDice, dDice); i++) { if (ar[i] > dr[i]) dLost++; else aLost++; }
+  inv.attackedOnce = true; inv.lastDice = nDice;
+  showCombat(inv, ar, dr, a8, d8, aLost, dLost);
+  log(`  ${P(p).name} rolls ${ar.join(" ")}${a8 ? ` (${a8}xd8)` : ""} vs ${dr.join(" ")}${d8 ? ` (${d8}xd8)` : ""} -> attacker -${aLost}, defender -${dLost}`);
+  const quiet = (n, k) => { const t = T(n); let r = Math.min(k, t.mods); t.mods -= r; for (const c of CMDS) if (r < k && t.cmd[c]) { delete t.cmd[c]; r++; } };
+  quiet(inv.from, aLost); quiet(inv.to, dLost);
+  if (aLost) fx.flash(inv.from); if (dLost) fx.flash(inv.to); if (aLost + dLost) fx.shake();
+  if (units(inv.to) === 0) {
+    inv.captured = true; inv.mustMove = which.filter(c => f.cmd[c]);
+    if (d.station && stations(p) >= RULES.maxStations) { d.station = false; log(`  the Space Station in ${inv.to} is destroyed`); }
+    const defender = d.owner; d.owner = p; fx.shock(inv.to, p === 0 ? "#ff4d5a" : "#3d9bff");
+    log(`  ${P(p).name} captures ${inv.to}`);
+    const pl = P(p); if (inv.contested) pl.captures++;
+    if (pl.captures >= 3 && !pl.bonusClaimed) {
+      pl.bonusClaimed = true; pl.energy++;
+      const opts = CMDS.filter(c => hasCmd(p, c) && S.decks[c].length);
+      log(`  3-territory bonus: ${pl.name} gains 1 energy and a command card`);
+      if (opts.length) { const deck = pl.bot ? opts[0] : await modal("3-TERRITORY BONUS", "You gain 1 energy and a command card. Draw from which deck?", opts.map(c => ({ label: c, value: c }))); pl.hand.push(drawCard(deck)); }
+    }
+    checkElim(defender);
+  }
+  render();
+  await sleep(P(p).bot ? ui.botDelay : 250);
+}
+function moveIn(p, k) {
+  const inv = S.inv, f = T(inv.from), d = T(inv.to);
+  const maxMove = units(inv.from) - 1; k = Math.max(1, Math.min(k, maxMove));
+  let moved = 0; for (const c of inv.mustMove) if (f.cmd[c]) { delete f.cmd[c]; d.cmd[c] = true; moved++; }
+  k = Math.max(k, moved); const m = Math.min(k - moved, f.mods); f.mods -= m; d.mods += m; moved += m;
+  for (const c of CMDS) if (moved < k && f.cmd[c]) { delete f.cmd[c]; d.cmd[c] = true; moved++; }
+  d.owner = p; log(`  ${P(p).name} moves ${moved} unit(s) into ${inv.to}`); fx.orb(inv.from, inv.to, p === 0 ? "#ff4d5a" : "#3d9bff");
+  if (P(p).scout === inv.to) { d.mods += 5; P(p).scout = null; log("  scout forces arrive: +5 MODs"); }
+  S.inv = null; HL.attack = HL.defend = null; $("combat").classList.remove("show"); render();
+}
+function showCombat(inv, ar, dr, a8, d8, aLost, dLost) {
+  const el = $("combat"); el.classList.add("show");
+  const dice = (rolls, cls, n8, lost) => rolls.map((r, i) => `<div class="die ${i < n8 ? "d8" : cls} ${lost.includes(i) ? "lost" : ""}">${r}</div>`).join("");
+  const pairs = Math.min(ar.length, dr.length), aL = [], dL = []; for (let i = 0; i < pairs; i++) (ar[i] > dr[i] ? dL : aL).push(i);
+  el.innerHTML = `<div class="vs"><span style="color:${P(inv.attacker).color}">${P(inv.attacker).name}</span> ${inv.from} &rarr; ${inv.to} <span style="color:${inv.defender >= 0 ? P(inv.defender).color : "#888"}">${inv.defender >= 0 ? P(inv.defender).name : "empty"}</span></div>
+    <div class="dice">${dice(ar, "a", a8, aL)}</div><div class="dice">${dice(dr, "d", d8, dL)}</div>
+    <div class="result">attacker loses ${aLost} · defender loses ${dLost}${units(inv.to) - dLost <= 0 ? " · CAPTURED" : ""}</div>`;
+}
+
+// ---------- command cards ----------
+async function playCard(p, idx, when) {
+  const pl = P(p), c = CARD_DEFS[pl.hand[idx]];
+  if (c.when !== when || !hasCmd(p, c.deck) || pl.energy < cardCost(p, c) || (when === "before" && pl.invaded)) return;
+  pl.energy -= cardCost(p, c); pl.hand.splice(idx, 1);
+  log(`${pl.name} plays ${c.name}`); render();
+  await applyCard(p, c);
+  render();
+}
+function zoneRoll(type) {
+  if (type === "land") return ["NA", "SA", "EU", "AF", "AS", "AU"][die(6) - 1];
+  if (type === "moon") return ["CRE", "CRE", "DEL", "DEL", "SAJ", "SAJ"][die(6) - 1];
+  let r; do r = die(6); while (r === 6); return ["USP", "ASP", "NAT", "SAT", "IND"][r - 1];
+}
+async function applyCard(p, c) {
+  const pl = P(p);
+  const botBorder = (opts) => { const b = opts.filter(n => isBorder(p, n)); return (b.length ? b : opts)[rnd((b.length ? b : opts).length)]; };
+  switch (c.kind) {
+    case "reinforce": { let opts = owned(p, c.target); for (let i = 0; i < Math.min(3, opts.length); i++) { const t = await choose(p, opts, "Place 1 reinforcement MOD", botBorder); T(t).mods++; fx.flash(t); opts = opts.filter(n => n !== t); render(); } break; }
+    case "assemble": { const t = await choose(p, owned(p, c.target), "Place 3 MODs", botBorder); if (t) { T(t).mods += 3; fx.flash(t); } break; }
+    case "energyCrisis": { let got = 0; for (const q of [0, 1]) if (q !== p && active(q) && P(q).energy > 0) { P(q).energy--; got++; } pl.energy += got; log(`${pl.name} collects ${got} energy`); break; }
+    case "decoys": { for (const n of owned(p)) for (const k of Object.keys(T(n).cmd)) { const to = await choose(p, owned(p), `Move your ${k} Commander to`, botBorder); if (to !== n && T(n).cmd[k]) { delete T(n).cmd[k]; T(to).cmd[k] = true; if (units(n) === 0 && !T(n).station) T(n).owner = -1; await fx.orb(n, to); } } break; }
+    case "modReduction": { const rm = (q, k) => { let r = 0; while (r < k) { const cands = owned(q).filter(n => T(n).mods > 0 && units(n) > 1); if (!cands.length) break; const b = cands.reduce((x, n) => T(n).mods > T(x).mods ? n : x); T(b).mods--; r++; } if (r) log(`${P(q).name} removes ${r} MOD(s)`); }; for (const q of [0, 1]) if (q !== p && active(q)) rm(q, 4); rm(p, 2); break; }
+    case "redeployment": pl.extraFortify++; break;
+    case "terrStation": { if (stations(p) >= RULES.maxStations) break; const t = await choose(p, owned(p, "land").filter(n => !T(n).station), "Place a Space Station in", botBorder); if (t) { T(t).station = true; log(`${pl.name} deploys a Space Station to ${t}`); } break; }
+    case "jam": { const q = await choosePlayer(p, [0, 1].filter(x => x !== p && active(x)), "Jam which player's command cards this turn?"); if (q !== undefined && q !== null) { P(q).jammed = true; log(`${P(q).name} cannot play command cards during ${pl.name}'s turn`); } break; }
+    case "scout": { const t = drawTerr("land", true); if (T(t).owner === p) { T(t).mods += 5; log(`${pl.name} places 5 scout MODs on ${t}`); } else { pl.scout = t; log(pl.bot ? `${pl.name} has scouts waiting somewhere` : `Your scouts wait in ${t}`); } break; }
+    case "hiddenEnergy": { const t = drawTerr("water"); pl.hidden.push(t); log(pl.bot ? `${pl.name} draws a hidden energy site` : `Hold ${t} at the end of your turn to collect 4 energy`); break; }
+    case "zone": { const r = zoneRoll(c.target); log(`${c.name} strikes ${REGIONS[r].name}!`); const aff = new Set(); for (const n of NAMES) if (MAP[n].region === r && !T(n).dev && units(n) > 0) { aff.add(T(n).owner); destroyUnits(n, 1); } for (const q of aff) checkElim(q); break; }
+    case "assassin": { const opts = NAMES.filter(n => T(n).owner >= 0 && T(n).owner !== p && Object.keys(T(n).cmd).length); if (!opts.length) { log("No enemy commander to target"); break; } const t = await choose(p, opts, "Target the commander in", o => o[0]); const k = ["Nuclear", "Space", "Naval", "Land", "Diplomat"].find(x => T(t).cmd[x]); const r = die(8); if (r >= 3) { const o = T(t).owner; delete T(t).cmd[k]; log(`Assassin Bomb rolls ${r}: ${P(o).name}'s ${k} Commander in ${t} is destroyed`); fx.shock(t, "#ff5040"); if (units(t) === 0 && !T(t).station) T(t).owner = -1; checkElim(o); } else log(`Assassin Bomb rolls ${r}: the commander survives`); break; }
+    case "armageddon": pl.armageddon = true; log(`${pl.name} launches Armageddon: nuclear cards are free this turn`); break;
+    case "rocket": { const opts = NAMES.filter(n => MAP[n].type === c.target && T(n).owner >= 0 && T(n).owner !== p && units(n) > 0); if (!opts.length) { log("No target for the rocket strike"); break; } const t = await choose(p, opts, "Rocket strike target", o => o.reduce((b, n) => units(n) > units(b) ? n : b)); const r = die(6), o = T(t).owner; log(`Rocket strike on ${t} rolls ${r}`); destroyUnits(t, r); checkElim(o); break; }
+    case "scatter": { for (let i = 0; i < c.amount; i++) { const t = drawTerr(c.target); const s = T(t); if (s.owner < 0 || s.owner === p || s.dev) continue; const k = Math.ceil(units(t) / 2), o = s.owner; log(`Scatter bomb hits ${t}: ${k} unit(s) destroyed`); destroyUnits(t, k); checkElim(o); } break; }
+    case "invadeEarth": { for (let g = 0; g < 60; g++) { const t = drawTerr("land", true); if (T(t).owner !== p) { pl.invadeEarth = t; log(`${pl.name} may invade ${t} from the Moon this turn`); break; } } break; }
+    case "extraction": pl.extraction = true; break;
+  }
+}
+
+// ============================================================================
+// BOT
+// ============================================================================
+function botReactive(q, playable, inv) {
+  const att = units(inv.from), def = units(inv.to);
+  for (const { c, i } of playable) {
+    if (c.kind === "stealth" || c.kind === "stealthStation") return i;
+    if (c.kind === "deathTrap" && att >= 4) return i;
+    if (c.kind === "ceaseFire" && att >= 6 && P(q).energy >= c.cost + 1) return i;
+    if (c.kind === "evacuation" && att >= def * 3 && def >= 3) return i;
+  }
+  return null;
+}
+function botPlayable(p, when) {
+  const pl = P(p);
+  for (let i = 0; i < pl.hand.length; i++) {
+    const c = CARD_DEFS[pl.hand[i]];
+    if (c.when !== when || !hasCmd(p, c.deck) || pl.energy - cardCost(p, c) < 1) continue;
+    if (c.kind === "armageddon" && !pl.hand.some(id => CARD_DEFS[id].deck === "Nuclear" && CARD_DEFS[id].cost > 0 && CARD_DEFS[id].kind !== "armageddon")) continue;
+    if (c.kind === "extraction" && !Object.entries(REGIONS).some(([k, r]) => r.type === "moon" && controls(p, k))) continue;
+    if (c.kind === "redeployment" && false) continue;
+    return i;
+  }
+  return -1;
+}
+async function botTurn(p) {
+  const pl = P(p), D = () => sleep(ui.botDelay);
+  // deployment: weakest border territory facing the human, then general borders
+  while (pl.pool > 0) {
+    const b = borderTerrs(p);
+    const facing = b.filter(n => MAP[n].adj.some(m => T(m).owner === 0));
+    const pool = facing.length ? facing : b;
+    const t = pool.reduce((x, n) => units(n) < units(x) ? n : x);
+    const k = Math.min(pl.pool, 1 + rnd(Math.max(1, Math.ceil(pl.pool / 2))));
+    T(t).mods += k; pl.pool -= k; fx.flash(t); render(); await D();
+  }
+  for (const c of ["Land", "Naval", "Nuclear", "Space", "Diplomat"]) if (!hasCmd(p, c) && pl.energy >= RULES.commanderCost + 1) { const t = borderTerrs(p)[0]; T(t).cmd[c] = true; pl.energy -= RULES.commanderCost; log(`${pl.name} hires a ${c} Commander in ${t}`); render(); await D(); }
+  if (pl.energy >= RULES.stationCost + 2 && stations(p) < RULES.maxStations && rnd(3) === 0) { const spots = owned(p, "land").filter(n => !T(n).station); if (spots.length) { const t = spots[rnd(spots.length)]; T(t).station = true; pl.energy -= RULES.stationCost; log(`${pl.name} builds a Space Station in ${t}`); } }
+  const decks = CMDS.filter(c => hasCmd(p, c) && S.decks[c].length);
+  if (decks.length && pl.energy > 1 && pl.hand.length < 6) { const n = Math.min(RULES.maxCards, pl.energy - 1, 6 - pl.hand.length); let bought = 0; for (let i = 0; i < n; i++) { const d = decks[rnd(decks.length)]; const id = drawCard(d); if (id !== null) { pl.hand.push(id); pl.energy--; bought++; } } if (bought) log(`${pl.name} buys ${bought} command card(s)`); }
+  for (let g = 0; g < 8; g++) { const i = botPlayable(p, "before"); if (i < 0) break; await playCard(p, i, "before"); await D(); }
+  // attacks
+  S.phase = "ATTACK"; render();
+  for (let g = 0; g < 12; g++) {
+    const opts = [];
+    for (const from of owned(p)) {
+      if (units(from) < 2) continue;
+      const targets = new Set(MAP[from].adj); if (T(from).station) LANDING_SITES.forEach(s => targets.add(s)); if (pl.invadeEarth) targets.add(pl.invadeEarth);
+      for (const to of targets) { if (canInvade(p, from, to)) continue; const du = units(to); if (du === 0 || units(from) >= du + 2) opts.push({ from, to, s: units(from) - du + (du === 0 ? 1 : 0) + (T(to).owner === 0 ? 1 : 0) }); }
+    }
+    if (!opts.length) break;
+    opts.sort((a, b) => b.s - a.s); const o = opts[Math.min(rnd(3), opts.length - 1)];
+    await declareInvasion(p, o.from, o.to);
+    while (S.inv && !S.inv.captured) { const u = units(o.from); if (u < 2 || (u <= units(o.to) && S.inv.attackedOnce)) { S.inv = null; HL.attack = HL.defend = null; break; } await attack(p, Math.min(3, u - 1)); }
+    if (S.inv && S.inv.captured) { const maxMove = units(o.from) - 1, minMove = Math.max(1, Math.min(S.inv.lastDice, maxMove)); const keep = isBorder(p, o.from) ? Math.min(maxMove, 2) : 0; moveIn(p, Math.max(minMove, maxMove - keep)); await D(); }
+    $("combat").classList.remove("show");
+  }
+  // fortify
+  S.phase = "FORTIFY"; render();
+  const i = botPlayable(p, "end"); if (i >= 0) await playCard(p, i, "end");
+  for (let m = 0; m <= pl.extraFortify; m++) {
+    const interior = owned(p).filter(n => !isBorder(p, n) && T(n).mods >= 2);
+    if (!interior.length) break;
+    const from = interior.reduce((x, n) => T(n).mods > T(x).mods ? n : x);
+    const dests = borderTerrs(p).filter(n => n !== from && fortifyPath(p, from, n));
+    if (!dests.length) break;
+    const to = dests[rnd(dests.length)], k = T(from).mods - 1; T(from).mods -= k; T(to).mods += k;
+    log(`${pl.name} fortifies ${k} unit(s) from ${from} to ${to}`); await fx.orb(from, to, "#3d9bff");
+  }
+  await D();
+}
+
+// ---------- scoring ----------
+function finalScoring() {
+  S.phase = "GAME OVER"; log("=== Final scoring ===", "y");
+  const res = [];
+  for (const p of [0, 1]) {
+    const pl = P(p); let inf = 0;
+    if (!pl.elim) pl.hand = pl.hand.filter(id => { const c = CARD_DEFS[id]; if (c.when === "score" && hasCmd(p, c.deck)) { inf += 3; return false; } return true; });
+    pl.final = score(p) + inf;
+    log(`${pl.name}: ${owned(p).length} territories + ${regionBonus(p)} bonus + ${inf} influence = ${pl.final}`);
+    res.push(p);
+  }
+  res.sort((a, b) => P(b).final - P(a).final || P(b).energy - P(a).energy || countUnits(b) - countUnits(a));
+  S.winner = res[0]; render();
+  log(`${P(S.winner).name} is elected the new world leader!`, "y");
+  setPrompt("GAME OVER", `${P(S.winner).name} is elected world leader.\n${res.map(p => `${P(p).name}: ${P(p).final}`).join("   ")}`, [{ id: "menu", label: "Back to menu", cls: "primary" }]);
+  userInput().then(() => location.reload());
+}
+
+// ============================================================================
+// BOOT
+// ============================================================================
+buildBoard();
+function start(spectate) {
+  newGame(spectate); $("menu").style.display = "none";
+  const sp = $("actions2"); sp.innerHTML = "";
+  const b = document.createElement("button"); b.textContent = "Bot speed: normal"; b.className = "small";
+  b.addEventListener("click", () => { ui.botDelay = ui.botDelay > 100 ? 40 : 350; b.textContent = ui.botDelay > 100 ? "Bot speed: normal" : "Bot speed: fast"; }); sp.appendChild(b);
+  render(); runGame();
+}
+$("btn-start").addEventListener("click", () => start(false));
+$("btn-spectate").addEventListener("click", () => start(true));
+</script>
+</body>
+</html>
