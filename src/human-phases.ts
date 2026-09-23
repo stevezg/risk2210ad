@@ -1,5 +1,5 @@
 import { CMDS, MAP, NAMES, RULES } from "./data";
-import { S, T, P, units, owned, hasCmd, stations, canInvade, fortifyPath, ui, drawCard } from "./state";
+import { S, T, P, units, owned, hasCmd, stations, canInvade, fortifyPath, ui, drawCard, gameEnded } from "./state";
 import { $, HL, clearHL, fx, log, render, setPrompt, setStatus } from "./render";
 import { userInput } from "./ui-events";
 import { declareInvasion, moveIn, attack } from "./combat";
@@ -9,6 +9,7 @@ import type { Button, Commander } from "./types";
 export async function humanRecruit(p: number) {
   const pl = P(p); ui.mode = "recruit"; ui.selected = null; ui.hireType = null; ui.cart = [];
   while (true) {
+    if (gameEnded()) break;
     render();
     const btns: Button[] = [];
     if (pl.pool > 0) {
@@ -52,8 +53,10 @@ export async function humanRecruit(p: number) {
 }
 
 export async function humanAttack(p: number) {
+  if (gameEnded()) return;
   const pl = P(p); ui.mode = "attack"; ui.selected = null; ui.moveTarget = null; S!.phase = "ATTACK"; clearHL();
   while (true) {
+    if (gameEnded()) break;
     render();
     const inv = S!.inv;
     if (!inv) {
@@ -114,9 +117,11 @@ export async function humanAttack(p: number) {
 }
 
 export async function humanFortify(p: number) {
+  if (gameEnded()) return;
   const pl = P(p); ui.mode = "fortify"; S!.phase = "FORTIFY"; ui.selected = null; ui.fortDest = null; clearHL();
   let moves = 0;
   while (true) {
+    if (gameEnded()) break;
     render();
     if (!ui.selected) {
       setPrompt("FORTIFY", "One free move along a chain of your territories (Space Station <-> landing sites count). Click the source territory, or skip.", [{ id: "skip", label: moves ? "End turn" : "Skip fortify", cls: "primary" }]);

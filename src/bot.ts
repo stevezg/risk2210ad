@@ -1,6 +1,6 @@
 import { CMDS, LANDING_SITES, MAP, NAMES, REGIONS, RULES } from "./data";
 import {
-  S, T, P, units, owned, hasCmd, stations, cardCost, canInvade, isBorder, borderTerrs, drawCard, rnd, sleep, ui,
+  S, T, P, units, owned, hasCmd, stations, cardCost, canInvade, isBorder, borderTerrs, drawCard, rnd, sleep, ui, gameEnded,
 } from "./state";
 import { fx, log, render, HL, $ } from "./render";
 import { attack, declareInvasion, moveIn } from "./combat";
@@ -37,6 +37,7 @@ export function botPlayable(p: number, when: string): number {
   return -1;
 }
 export async function botTurn(p: number) {
+  if (gameEnded()) return;
   const pl = P(p), D = () => sleep(ui.botDelay);
   // deployment: reinforce whichever border is most outmatched by adjacent enemy strength
   while (pl.pool > 0) {
@@ -68,8 +69,9 @@ export async function botTurn(p: number) {
   if (pl.energy >= RULES.stationCost + 4 && stations(p) < RULES.maxStations && rnd(4) === 0) { const spots = owned(p, "land").filter((n) => !T(n).station); if (spots.length) { const t = spots[rnd(spots.length)]; T(t).station = true; pl.energy -= RULES.stationCost; log(`${pl.name} builds a Space Station in ${t}`); } }
   for (let g = 0; g < 8; g++) { const i = botPlayable(p, "before"); if (i < 0) break; await playCard(p, i, "before"); await D(); }
   // attacks
+  if (gameEnded()) return;
   S!.phase = "ATTACK"; render();
-  for (let g = 0; g < 12; g++) {
+  for (let g = 0; g < 12 && !gameEnded(); g++) {
     const opts: { from: string; to: string; s: number }[] = [];
     for (const from of owned(p)) {
       if (units(from) < 2) continue;
@@ -102,9 +104,10 @@ export async function botTurn(p: number) {
     $("combat").classList.remove("show");
   }
   // fortify
+  if (gameEnded()) return;
   S!.phase = "FORTIFY"; render();
   const i = botPlayable(p, "end"); if (i >= 0) await playCard(p, i, "end");
-  for (let m = 0; m <= pl.extraFortify; m++) {
+  for (let m = 0; m <= pl.extraFortify && !gameEnded(); m++) {
     const interior = owned(p).filter((n) => !isBorder(p, n) && T(n).mods >= 2);
     if (!interior.length) break;
     const from = interior.reduce((x, n) => T(n).mods > T(x).mods ? n : x);

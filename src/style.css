@@ -137,3 +137,15 @@ button.small { padding: 3px 6px; font-size: 10px; }
 #menu .sub { font-size: 22px; color: var(--cyan); letter-spacing: 8px; margin-bottom: 20px; }
 #menu p { font-size: 11px; color: var(--dim); line-height: 1.6; }
 #menu .row { display: flex; gap: 6px; justify-content: center; margin: 8px 0; }
+
+/* ---------- victory / defeat banner ---------- */
+#victory { position: fixed; inset: 0; background: rgba(2,4,10,.94); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 70; text-align: center; padding: 20px; animation: v-fade .5s ease-out; }
+#victory.show { display: flex; }
+#victory .v-title { font-size: 64px; letter-spacing: 10px; margin-bottom: 12px; animation: v-zoom .5s ease-out; }
+#victory .v-title.win { color: var(--cyan); text-shadow: 0 0 30px rgba(92,225,255,.9), 0 0 70px rgba(92,225,255,.6); }
+#victory .v-title.lose { color: var(--red); text-shadow: 0 0 30px rgba(255,77,90,.9), 0 0 70px rgba(255,77,90,.6); }
+#victory .v-sub { font-size: 16px; color: var(--amber); letter-spacing: 6px; margin-bottom: 24px; }
+#victory .v-body { font-size: 12px; color: var(--text); line-height: 1.8; white-space: pre-line; margin-bottom: 28px; max-width: 520px; }
+#victory button { padding: 10px 22px; font-size: 12px; letter-spacing: 3px; }
+@keyframes v-zoom { from { transform: scale(.55); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes v-fade { from { opacity: 0; } to { opacity: 1; } }

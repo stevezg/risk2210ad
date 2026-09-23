@@ -1,6 +1,7 @@
 import { CARD_DEFS, CMDS, MAP, NAMES, REGIONS, RULES } from "./data";
 import type { CardDef, Commander, GameState, PlayerState, TerritoryState, UIState } from "./types";
 import { fx, log, setView } from "./render";
+import { finalScoring } from "./turn-flow";
 
 export let S: GameState | null = null;
 
@@ -141,4 +142,12 @@ export function checkElim(p: number) {
   P(p).elim = true; P(p).hand = [];
   for (const n of owned(p)) { T(n).station = false; T(n).owner = -1; }
   log(P(p).name + " has been eliminated!", "y");
+  // End the game the instant conquest happens, not at the end of whoever's turn it is --
+  // otherwise the winning side keeps attacking/fortifying (and re-issuing prompts) after the
+  // war is already over, which stomps on the Game Over screen's own pending "click to continue".
+  const standing = [0, 1].filter(active);
+  if (standing.length === 1) { S!.conquest = true; finalScoring(); }
 }
+/** True once the game has ended, so in-flight bot/human turn loops know to stop issuing
+ *  further prompts instead of racing finalScoring()'s own pending userInput(). */
+export function gameEnded(): boolean { return !!S && S.phase === "GAME OVER"; }

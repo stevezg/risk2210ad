@@ -190,3 +190,17 @@ export const fx = {
   },
   shake() { const b = $("board"); b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); },
 };
+
+/** A dedicated full-screen banner (not routed through setPrompt/userInput) so a bot/human phase
+ *  loop that's still winding down can never steal the "click to continue" away from this screen --
+ *  that hijack (via the shared ui.resolve slot) was the actual cause of "the game keeps going". */
+export function showVictory(body: string) {
+  const won = S!.winner === 0; // RED is always the human seat in campaign mode
+  const el = $("victory"), titleEl = $("victory-title");
+  if (ui.spectate) { titleEl.textContent = `${P(S!.winner).name} WINS`; titleEl.className = "v-title " + (S!.winner === 0 ? "win" : "lose"); }
+  else { titleEl.textContent = won ? "YOU ARE VICTORIOUS" : "YOU HAVE BEEN DEFEATED"; titleEl.className = "v-title " + (won ? "win" : "lose"); }
+  $("victory-sub").textContent = S!.conquest ? "TOTAL CONQUEST" : "FINAL SCORING";
+  $("victory-body").textContent = body;
+  el.classList.add("show");
+  ($("victory-btn") as HTMLButtonElement).onclick = () => location.reload();
+}

@@ -1,9 +1,9 @@
 import { CARD_DEFS, MAP, NAMES, REGIONS, RULES } from "./data";
 import {
   S, T, P, active, owned, score, regionBonus, income, countUnits, borderTerrs, drawTerr, devastate, rnd, die,
-  resetTurnFlags, hasCmd, controls, ui,
+  resetTurnFlags, hasCmd, controls, ui, gameEnded,
 } from "./state";
-import { HL, clearHL, ensureYearTrack, log, render, setPrompt } from "./render";
+import { HL, clearHL, ensureYearTrack, log, render, setPrompt, showVictory } from "./render";
 import { choose, modal, modalNumber, userInput } from "./ui-events";
 import { humanAttack, humanFortify, humanRecruit } from "./human-phases";
 import { botTurn } from "./bot";
@@ -139,6 +139,7 @@ export async function endTurn(p: number) {
 }
 
 export function finalScoring() {
+  if (gameEnded()) return; // idempotent: checkElim() may already have ended the game mid-turn
   S!.phase = "GAME OVER";
   log(S!.conquest ? "=== Total conquest ===" : "=== Final scoring ===", "y");
   const res: number[] = [];
@@ -156,6 +157,5 @@ export function finalScoring() {
   const body = S!.conquest
     ? `${P(S!.winner).name} has eliminated ${P(1 - S!.winner).name} in Year ${S!.year} — no opposition remains.\n${res.map((p) => `${P(p).name}: ${P(p).final}`).join("   ")}`
     : `${P(S!.winner).name} is elected world leader.\n${res.map((p) => `${P(p).name}: ${P(p).final}`).join("   ")}`;
-  setPrompt("GAME OVER", body, [{ id: "menu", label: "Back to menu", cls: "primary" }]);
-  userInput().then(() => location.reload());
+  showVictory(body);
 }
