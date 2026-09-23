@@ -113,9 +113,6 @@ button.small { padding: 3px 6px; font-size: 10px; }
 .ccard .cm { color: var(--amber); font-size: 9px; letter-spacing: 1px; }
 .ccard .icon { display: inline-block; width: 14px; height: 14px; border-radius: 7px; text-align: center; line-height: 14px; font-size: 9px; color: #04101a; font-weight: bold; margin-right: 5px; }
 .deck-Land { background: #78dc78; } .deck-Diplomat { background: #f0c85a; } .deck-Naval { background: #5aaaff; } .deck-Nuclear { background: #ff6e5a; } .deck-Space { background: #c896ff; }
-.ccard .tip { display: none; position: absolute; right: 102%; top: 0; width: 220px; background: rgba(4,10,20,.97); border: 1px solid var(--cyan); border-radius: 8px; padding: 8px; z-index: 20; font-size: 10px; line-height: 1.5; color: var(--text); }
-.ccard:hover .tip { display: block; }
-.ccard .tip b { color: var(--cyan); }
 
 /* ---------- modal ---------- */
 #modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 50; }
@@ -550,19 +547,33 @@ function renderHand() {
     const c = CARD_DEFS[id];
     const usable = reactive ? reactivePlayable(me, c) : ((canBefore && c.when === "before") || (canEnd && c.when === "end")) && hasCmd(me, c.deck) && p.energy >= cardCost(me, c);
     const why = usable ? "Playable now." : !hasCmd(me, c.deck) ? `Needs your ${c.deck} Commander in play.` : p.energy < cardCost(me, c) ? "Not enough energy." : p.jammed ? "Jammed this turn." : "Cannot be played at this moment.";
-    return `<div class="ccard ${usable ? "playable" : ""}" data-i="${i}"><span class="icon deck-${c.deck}">${c.deck[0]}</span><span class="cn">${c.name}</span>
-      <div class="cm">${c.deck.toUpperCase()} · ${cardCost(me, c)} ENERGY · ${WHEN_TEXT[c.when]}</div>
-      <div class="tip"><b>${c.name}</b><br>${c.text}<br><br>${why}</div></div>`;
+    return `<div class="ccard ${usable ? "playable" : ""}" data-i="${i}" data-why="${why.replace(/"/g, '&quot;')}"><span class="icon deck-${c.deck}">${c.deck[0]}</span><span class="cn">${c.name}</span>
+      <div class="cm">${c.deck.toUpperCase()} · ${cardCost(me, c)} ENERGY · ${WHEN_TEXT[c.when]}</div></div>`;
   }).join("") || `<div style="font-size:10px;color:var(--dim)">No command cards. Buy them during recruitment (1 energy each, matching commander required).</div>`;
   el.querySelectorAll(".ccard.playable").forEach(d => d.addEventListener("click", () => emit({ type: "card", idx: +d.dataset.i })));
+  el.querySelectorAll(".ccard").forEach(d => {
+    const c = CARD_DEFS[p.hand[+d.dataset.i]];
+    d.addEventListener("mouseenter", (e) => showHtmlTip(`<b>${c.name}</b><br>${c.text}<br><br>${d.dataset.why}`, e));
+    d.addEventListener("mousemove", moveTip);
+    d.addEventListener("mouseleave", hideTip);
+  });
 }
 function setPrompt(title, text, buttons = [], status = "") {
   $("prompt-title").textContent = title; $("prompt-text").textContent = text; $("status").textContent = status;
   const box = $("actions"); box.innerHTML = "";
   for (const b of buttons) {
     const el = document.createElement("button"); el.textContent = b.label; if (b.cls) el.className = b.cls; el.disabled = !!b.disabled;
-    el.addEventListener("click", () => emit({ type: "btn", id: b.id })); box.appendChild(el);
+    el.addEventListener("click", () => emit({ type: "btn", id: b.id }));
+    if (b.tip) { el.addEventListener("mouseenter", (e) => showHtmlTip(b.tip, e)); el.addEventListener("mousemove", moveTip); el.addEventListener("mouseleave", hideTip); }
+    box.appendChild(el);
   }
+}
+/** Deck contents preview shown when hovering a "+X card" buy button. */
+function deckTip(deck) {
+  const cards = CARD_DEFS.filter(c => c.deck === deck);
+  const names = [...new Set(cards.map(c => c.name))];
+  return `<b>${deck.toUpperCase()} DECK</b> (${S.decks[deck].length} left)<br>` +
+    names.map(n => { const c = cards.find(x => x.name === n); return `<b>${n}</b> ${WHEN_TEXT[c.when]}<br>${c.text}`; }).join("<br><br>");
 }
 function setStatus(s) { $("status").textContent = s || ""; }
 const HL = { option: new Set(), target: new Set(), fortify: new Set(), selected: null, attack: null, defend: null };
@@ -584,8 +595,9 @@ function showTip(n, e) {
   if (t.dev) body += "DEVASTATED - impassable"; else if (t.owner < 0) body += "Unoccupied";
   else body += `${P(t.owner).name}: ${t.mods} MODs${Object.keys(t.cmd).map(c => " + " + c).join("")}${t.station ? " · Space Station" : ""}`;
   if (m.site) body += "<br>Lunar landing site";
-  const tip = $("tooltip"); tip.innerHTML = body; tip.style.display = "block"; moveTip(e);
+  showHtmlTip(body, e);
 }
+function showHtmlTip(html, e) { const tip = $("tooltip"); tip.innerHTML = html; tip.style.display = "block"; moveTip(e); }
 function moveTip(e) { const tip = $("tooltip"); tip.style.left = Math.min(e.clientX + 16, innerWidth - 260) + "px"; tip.style.top = Math.min(e.clientY + 16, innerHeight - 100) + "px"; }
 function hideTip() { $("tooltip").style.display = "none"; }
 const fx = {
@@ -784,7 +796,7 @@ async function humanRecruit(p) {
     } else {
       for (const c of CMDS) btns.push({ id: "hire:" + c, label: `Hire ${c}`, disabled: hasCmd(p, c) || pl.energy < RULES.commanderCost, cls: ui.hireType === c ? "toggled" : "" });
       btns.push({ id: "hire:station", label: "Space Station (5E)", disabled: pl.energy < RULES.stationCost || stations(p) >= RULES.maxStations, cls: ui.hireType === "station" ? "toggled" : "" });
-      for (const c of CMDS) btns.push({ id: "buy:" + c, label: `+${c} card (${S.decks[c].length})`, cls: "small", disabled: !hasCmd(p, c) || !S.decks[c].length || ui.cart.length + pl.cardsBought >= RULES.maxCards || ui.cart.length >= pl.energy });
+      for (const c of CMDS) btns.push({ id: "buy:" + c, label: `+${c} card (${S.decks[c].length})`, cls: "small", disabled: !hasCmd(p, c) || !S.decks[c].length || ui.cart.length + pl.cardsBought >= RULES.maxCards || ui.cart.length >= pl.energy, tip: deckTip(c) });
       if (ui.cart.length) btns.push({ id: "buy", label: `Buy ${ui.cart.length}: ${ui.cart.map(c => c[0]).join(" ")}`, cls: "primary" }, { id: "clear", label: "Clear", cls: "small" });
       btns.push({ id: "end", label: "End recruitment", cls: "primary" });
       setPrompt("RECRUIT", `Energy ${pl.energy}. Hire (3E) / station (5E): pick an option, then click a territory. Cards cost 1E (max 4). Glowing cards can be played now.`, btns);
