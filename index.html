@@ -869,8 +869,10 @@ async function declareInvasion(p, from, to) {
   HL.attack = from; HL.defend = to; focusMap(to); render();
   log(`${P(p).name} invades ${to} from ${from}`);
   if (inv.contested) {
-    // reactive cards: defender first, then the other player
-    for (const q of [inv.defender, ...[0, 1].filter(x => x !== inv.defender && x !== p)]) {
+    // reactive cards: the defender first, then a bystander may help -- but only when the
+    // defender is a real player. Nobody gets a "help the neutral army" prompt.
+    const bystanders = active(inv.defender) ? [0, 1].filter(x => x !== inv.defender && x !== p) : [];
+    for (const q of [inv.defender, ...bystanders]) {
       if (!active(q)) continue;
       for (let guard = 0; guard < 6 && S.inv; guard++) {
         const playable = P(q).hand.map((id, i) => ({ c: CARD_DEFS[id], i })).filter(x => reactivePlayable(q, x.c));

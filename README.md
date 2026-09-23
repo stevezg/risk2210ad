@@ -4,6 +4,8 @@ A complete, single-file digital adaptation of the 2001 Avalon Hill board game, p
 photo of the physical board. No frameworks, no build step, no dependencies: open `index.html`
 in Safari or Chrome and play.
 
+**Play it right now, no download:** https://stevezg.github.io/risk2210ad/
+
 ![the board](board_photo.jpg)
 
 You play RED against the BLUE machine intelligence; a neutral GRAY army holds the ground
@@ -55,6 +57,12 @@ gating, all five base-game command decks with their effects, 3-territory bonus, 
 fortify chains through stations and landing sites, a configurable/extendable game length (see
 above) and final scoring with Colony Influence (+3) and energy/unit tie-breaks. Armageddon is
 simplified to "your nuclear cards are free this turn".
+
+## Multiplayer (in progress)
+
+This is currently a single-player game (you vs. one bot, locally, in your browser). A C++
+multiplayer server that lets people on different computers play the same live game together is
+in active development — see [ARCHITECTURE.md](ARCHITECTURE.md) for the design and current status.
 
 ## Architecture
 
