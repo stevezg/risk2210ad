@@ -1,20 +1,34 @@
 # Risk 2210 A.D. — browser edition
 
-A complete, single-file digital adaptation of the 2001 Avalon Hill board game, played over a
-photo of the physical board. No frameworks, no build step, no dependencies: open `index.html`
-in Safari or Chrome and play.
+A complete digital adaptation of the 2001 Avalon Hill board game, played over a photo of the
+physical board. TypeScript + Vite, no UI framework — the game loop is a plain async "coroutine"
+that awaits clicks, which doesn't need a component framework wrapped around it.
 
 **Play it right now, no download:** https://stevezg.github.io/risk2210ad/
 
 ![the board](board_photo.jpg)
 
 You play RED against the BLUE machine intelligence; a neutral GRAY army holds the ground
-between you (the official 2-player rules). A local server is only needed if your browser blocks
-font loading from `file://`:
+between you (the official 2-player rules).
+
+## Development
 
 ```sh
-python3 -m http.server 8765   # then open http://localhost:8765/
+npm install
+npm run dev      # local dev server with hot reload, http://localhost:5173
+npm run build    # type-checks, then builds the static site into docs/ (what GitHub Pages serves)
+npm run preview  # serve the docs/ build locally to sanity-check it before pushing
 ```
+
+Source lives in `src/`, split by concern: `data.ts` (board graph, command cards), `state.ts`
+(game state and pure queries), `render.ts` (DOM rendering, tooltips, effects), `ui-events.ts`
+(the click/prompt event loop), `combat.ts`, `cards.ts`, `human-phases.ts`, `bot.ts`,
+`turn-flow.ts` (the year/turn loop), and `main.ts` (boot). `index.html` is Vite's entry point —
+same markup as before, now loading `src/main.ts` as a module instead of an inline `<script>`.
+
+For console-based testing (e.g. running bot-vs-bot games headlessly to check AI behavior),
+`main.ts` exposes `window.debug = { state, render, turnFlow, start }` — e.g.
+`debug.state.newGame(true); debug.turnFlow.runGame();` then inspect `debug.state.S`.
 
 ## Playing
 
@@ -73,21 +87,22 @@ cd server && cmake -S . -B build && cmake --build build -j && ./build/self_play_
 
 ## Architecture
 
-Short version: it's all in `index.html` — vanilla JS, no framework, no build step. For the long
-version — what data structures and algorithms run the game, whether we need a state-management
-library, how this could become multiplayer, whether the old C++ engine could come back as a
-WASM core under a Svelte/React/Vue frontend, and what "optimize this" actually means for a page
-this size — see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+For what data structures and algorithms run the game, how this could become multiplayer, and
+what "optimize this" means for a project this size, see **[ARCHITECTURE.md](ARCHITECTURE.md)**
+(written for the previous single-file version; the module split above is the only structural
+change since — the rules engine, bot, and UI logic themselves are unchanged).
 
 ## Files
 
 | File | |
 |---|---|
-| `index.html` | the entire game — layout, styles, rules engine, bot and UI |
+| `src/` | the game itself, in TypeScript modules (see Development above) |
+| `index.html` | Vite's entry point — markup only |
+| `docs/` | the built static site GitHub Pages serves — regenerate with `npm run build` |
 | `board_photo.jpg` | the Earth board |
 | `moon_photo.jpg` | the lunar board |
 | `cover.jpg` | box art for the title screen |
-| `gunship.ttf` | the display font (see `LICENSE-gunship.txt`) |
+| `src/gunship.ttf` | the display font (see `src/LICENSE-gunship.txt`) |
 
 ## Credits
 
