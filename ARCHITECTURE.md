@@ -1,5 +1,12 @@
 # Architecture, data structures & algorithms
 
+**Status: Phase 1 of the multiplayer rewrite is done.** `server/engine/` is a real, tested C++17
+rules engine for 2-5 players (the browser game below is still 2-player-only) -- see
+["Multiplayer rewrite: status"](#multiplayer-rewrite-status) near the end of this doc for what's
+built, what's next, and how to run it. Everything below this point describes the browser game as
+it stands today; the rewrite reuses its rules and data wholesale (see that section for exactly
+how).
+
 This doc answers the questions that came up building this: what the stack actually is, whether
 the old C++ engine still exists anywhere, what data structures and algorithms the game runs on,
 whether it needs a state-management library, how it could become multiplayer, and what a
@@ -204,3 +211,51 @@ A tour of what's actually doing work, since this was asked for directly:
   (unfocused/hidden) tabs by 10-100x. That's a browser policy, not this app — it only shows up
   when spectating in a backgrounded tab, which is exactly the scenario browser automation testing
   hits and a real player at their desk won't.
+
+
+## Multiplayer rewrite: status
+
+### What's built (Phase 1)
+
+`server/engine/` is a standalone, networking-free C++17 static library implementing the full
+ruleset for **2-5 players** -- the official player count, not just the browser game's fixed
+Red-vs-Blue-plus-neutral. It was built by mechanically porting `index.html`'s data and rules
+(not the older, now-superseded C++/Unity engines from this project's history) and generalizing
+every place the browser version hardcoded `[0, 1]` into a loop over `numRealPlayers`.
+
+| File | Contents |
+|---|---|
+| `Types.h` | Enums (`TerritoryType`, `Commander`, `Phase`, `CardKind`, `CardTiming`) and `Result` |
+| `MapGraph.h` / `.cpp` | The board graph. `.cpp` is **generated** from `index.html`'s `MAP`/`LINKS`/`REGIONS` -- regenerate it from there if the board ever changes; don't hand-edit adjacency |
+| `Cards.h` / `.cpp` | The 5 command decks. `.cpp` is likewise **generated** from `index.html`'s `CARD_DEFS` |
+| `GameState.h` | Per-territory/per-player state, `Prompt` (a pending decision with a `std::function` continuation), all generalized to N players |
+| `Commands.h` / `GameEvents.h` | The action/event vocabulary a client or bot speaks |
+| `GameDirector.h` / `.cpp` | The engine: setup, bidding, deployment, invasion, fortification, all 23 card-effect implementations, elimination/conquest, final scoring |
+| `tests/self_play_test.cpp` | A minimal (not yet "smart" -- that's Phase 2) bot plus a headless fuzz harness |
+
+Verified: **2,000 self-play games (500 seeds x each of 2/3/4/5 players), 1.3M+ commands, 0
+invariant violations**, running in under 1.5 seconds total. Also spot-checked directly: the
+Sung Tzu-Java Cartel link, the New Atlantis-Neo Tokyo Pacific wrap, Poseidon-Continental
+Biospheres, and Nova Brasilia-Amazon Desert -- the corrected adjacency from this project's map
+fixes -- are all present and exercised in the ported graph.
+
+One deliberate deviation from the original phase-by-phase file layout floated for this rewrite:
+turn-phase logic (setup/bidding/deployment/invasion/fortification) lives as clearly-separated
+methods directly on `GameDirector` rather than as a polymorphic `PhaseState` class hierarchy in
+separate files. For a single-maintainer engine this was simpler to get right in one pass and
+easier for the self-play harness to drive directly; splitting it out later, if it ever earns its
+keep, doesn't change any of the rules logic itself.
+
+A real bug the fuzz test caught immediately: the "Reinforcements" card's prompt continuation
+captured its enclosing function's stack locals **by reference** (`[&]`) so it could recurse,
+but `Prompt` continuations are called *after* the function that created them has already
+returned -- so those references were dangling by the time a player answered the prompt,
+crashing with `std::bad_function_call`. Fixed by heap-allocating the continuation's state
+(`shared_ptr`), the same pattern the "Decoys Revealed" card already used correctly.
+
+### What's next (Phases 2-5, not started)
+
+See the "Roadmap after this session" section of the original planning doc for the agreed shape:
+AI personalities + difficulty (Phase 2), the WebSocket server + protocol (Phase 3), turning
+`index.html` into a thin network client while keeping its look pixel-for-pixel identical
+(Phase 4), and an actual two-machine playtest (Phase 5).

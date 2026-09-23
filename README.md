@@ -62,7 +62,14 @@ simplified to "your nuclear cards are free this turn".
 
 This is currently a single-player game (you vs. one bot, locally, in your browser). A C++
 multiplayer server that lets people on different computers play the same live game together is
-in active development — see [ARCHITECTURE.md](ARCHITECTURE.md) for the design and current status.
+in active development in `server/` — see [ARCHITECTURE.md](ARCHITECTURE.md) for the design and
+current status. The rules engine itself (2-5 players, every card, fully generalized from the
+browser version's 2-player-only rules) is built and passing a 2,000-game self-play fuzz test;
+the networking layer and AI personalities are next.
+
+```sh
+cd server && cmake -S . -B build && cmake --build build -j && ./build/self_play_test
+```
 
 ## Architecture
 
